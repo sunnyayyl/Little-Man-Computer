@@ -1,7 +1,11 @@
 mod opcodes;
+mod parser;
 pub mod vm;
+
 pub use opcodes::OpCode;
+use std::fmt::Display;
 use std::fs;
+use std::io::Read;
 pub use vm::Mailbox;
 
 macro_rules! mnemonics_type_enum {
@@ -12,19 +16,42 @@ macro_rules! mnemonics_type_enum {
                 $name,
             )*
         }
+        impl MemonicType{
+            pub fn from_string(s: &str)->Option<MemonicType>{
+                match s {
+                    $(
+                    stringify!($name) => Some(MemonicType::$name),
+                    )*
+                    _ => None,
+                }
+            }
+        }
+        impl Display for MemonicType{
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                match self {
+                    $(
+                    MemonicType::$name => write!(f, "{}", stringify!($name)),
+                    )*
+                }
+
+            }
+        }
     }
 }
 
 mnemonics_type_enum!(ADD, SUB, STA, LDA, BRA, BRZ, BRP, INP, OUT, HLT, COB);
 
-struct Token {
-    left: Option<String>,
-    statement: MemonicType,
-    right: Option<String>,
-}
-
 fn main() {
-    let mailbox = vm::Mailbox::from(vec![901_u16, 308, 901, 309, 508, 209, 902, 000]);
+    // let mailbox = vm::Mailbox::from(vec![901_u16, 308, 901, 309, 508, 209, 902, 000]);
+    let mut code = String::new();
+    let mut code_file = fs::File::open("code.txt").expect("Failed to open file");
+    code_file
+        .read_to_string(&mut code)
+        .expect("TODO: panic message");
+    let characters = code.chars().collect::<Vec<char>>();
+    let mut parser = parser::Lexer::new(characters.as_slice());
+    let mailbox = parser.parse();
+    println!("{:?}", mailbox);
     {
         let mut file = fs::OpenOptions::new()
             .write(true)
