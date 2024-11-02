@@ -66,18 +66,8 @@ struct Token {
     right: Option<String>,
 }
 #[derive(Debug)]
-struct Mailbox(Vec<u16>);
+struct Mailbox([u16; 100]);
 impl Mailbox {
-    fn new() -> Self {
-        Self(Vec::new())
-    }
-    fn with_capacity(size: usize) -> Self {
-        Self(Vec::with_capacity(size))
-    }
-    fn push(&mut self, value: u16) {
-        assert!(self.0.len() >= 99);
-        self.0.push(value);
-    }
     fn export_to_file(&self, file: &mut File) -> Result<(), Error> {
         match file.write_all(cast_slice::<u16, u8>(self.0.as_slice())) {
             Ok(_) => Ok(()),
@@ -88,9 +78,13 @@ impl Mailbox {
         let mut buffer = Vec::new();
         match file.read_to_end(&mut buffer) {
             Ok(_) => {
+                let mut s: [u16; 100] = [0; 100];
                 let new_slice = try_cast_slice::<u8, u16>(buffer.as_slice());
                 match new_slice {
-                    Ok(new_slice) => Ok(Self::from(new_slice.to_vec())),
+                    Ok(new_slice) => {
+                        s.copy_from_slice(new_slice);
+                        Ok(Self(s))
+                    }
                     Err(e) => Err(Error::Cast(e)),
                 }
             }
@@ -101,7 +95,7 @@ impl Mailbox {
 impl Index<usize> for Mailbox {
     type Output = u16;
     fn index(&self, index: usize) -> &u16 {
-        if (index > 99) {
+        if !(0..=99).contains(&index) {
             panic!("There are only 100 mailbox (0-99) addresses available")
         }
         &self.0[index]
@@ -109,12 +103,19 @@ impl Index<usize> for Mailbox {
 }
 impl IndexMut<usize> for Mailbox {
     fn index_mut(&mut self, index: usize) -> &mut u16 {
+        if !(0..=99).contains(&index) {
+            panic!("There are only 100 mailbox (0-99) addresses available")
+        }
         &mut self.0[index]
     }
 }
 impl From<Vec<u16>> for Mailbox {
-    fn from(mailbox: Vec<u16>) -> Self {
-        Self(mailbox)
+    fn from(vec: Vec<u16>) -> Self {
+        let mut s: [u16; 100] = [0; 100];
+        for (i, v) in vec.iter().enumerate() {
+            s[i] = *v;
+        }
+        Self(s)
     }
 }
 struct Runtime {
@@ -125,6 +126,13 @@ struct Runtime {
 }
 
 impl Runtime {
+    fn wrap_between_valid_values(value: u16) -> u16 {
+        if value > 999 {
+            value - 1000
+        } else {
+            value
+        }
+    }
     fn get_addresses(&self, addr: u16) -> u16 {
         self.mailbox[addr as usize]
     }
@@ -143,17 +151,33 @@ impl Runtime {
             self.program_counter += 1;
             match current_instruction {
                 OpCode::ADD(addr) => {
-                    self.accumulator += self.get_addresses(addr);
+                    let new_value = self.accumulator + self.get_addresses(addr);
+                    self.accumulator = Self::wrap_between_valid_values(new_value);
                     self.negative_flag = false;
                 } // Should overflow result in a negative flag?
                 OpCode::SUB(addr) => {
-                    if (self.accumulator < self.get_addresses(addr)) {
+                    let current_box = self.get_addresses(addr);
+                    if (self.accumulator < current_box) {
                         self.negative_flag = true;
+                        self.accumulator = current_box - self.accumulator;
+                    } else {
+                        self.accumulator -= current_box;
                     }
-                    self.accumulator -= self.get_addresses(addr);
                 }
                 OpCode::STA(addr) => self.mailbox[addr as usize] = self.accumulator,
                 OpCode::LDA(addr) => self.accumulator = self.mailbox[addr as usize],
+                OpCode::BRA(addr) => self.program_counter = addr,
+                OpCode::BRZ(addr) => {
+                    if self.accumulator == 0 && !self.negative_flag {
+                        // Should the negative flag be taken into account?
+                        self.program_counter = addr;
+                    }
+                }
+                OpCode::BRP(addr) => {
+                    if !self.negative_flag {
+                        self.program_counter = addr;
+                    }
+                }
                 OpCode::OUT(_) => println!("{}", self.accumulator),
                 OpCode::INP(_) => {
                     let mut line = String::new();
@@ -164,16 +188,13 @@ impl Runtime {
                     self.accumulator = line.trim().parse::<u16>().expect("Input must be a number");
                 }
                 OpCode::HLT(_) => break,
-                _ => {
-                    println!("TODO");
-                    break;
-                }
+                OpCode::COB(_) => break,
             }
         }
     }
 }
 fn main() {
-    let mailbox = Mailbox::from(vec![504, 105, 902, 0, 2, 3]);
+    let mailbox = Mailbox::from(vec![901_u16, 308, 901, 309, 508, 209, 902, 000]);
     {
         let mut file = fs::OpenOptions::new()
             .write(true)
