@@ -10,7 +10,7 @@ macro_rules! op_code_enum {
         }
     }
 }
-op_code_enum!(ADD, SUB, STA, LDA, BRA, BRZ, BRP, INP, OUT, HLT, COB);
+op_code_enum!(ADD, SUB, STA, LDA, BRA, BRZ, BRP, INP, OUT, HLT, COB, DAT);
 
 impl From<u16> for OpCode {
     fn from(code: u16) -> Self {
@@ -53,6 +53,7 @@ impl OpCode {
             MemonicType::OUT => OpCode::OUT(addresses),
             MemonicType::HLT => OpCode::HLT(addresses),
             MemonicType::COB => OpCode::COB(addresses),
+            MemonicType::DAT => OpCode::DAT(addresses.unwrap_or(0).into()),
         }
     }
     pub fn to_numeric_representation(&self) -> u16 {
@@ -68,6 +69,7 @@ impl OpCode {
             OpCode::OUT(_) => 902,
             OpCode::HLT(_) => 000,
             OpCode::COB(_) => 000,
+            OpCode::DAT(a) => a.unwrap_or(0),
         }
     }
 }

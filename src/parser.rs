@@ -1,7 +1,5 @@
-use crate::parser::ParserError::{
-    EndOfLineExpected, InstructionExpected, InstructionUsedAsLabel, NumberExpected,
-};
-use crate::{Mailbox, MemonicType};
+use crate::parser::ParserError::{EndOfLineExpected, InstructionExpected, InstructionUsedAsLabel};
+use crate::{Mailbox, MemonicType, OpCode};
 use std::collections::HashMap;
 macro_rules! set_instruction {
     ($self:ident,$mailbox:ident,$instruction:ident,$third:ident) => {
@@ -56,21 +54,30 @@ impl Parser {
         instruction: MemonicType,
         label: Option<&str>,
     ) -> State<(), ParserError> {
-        if instruction == MemonicType::COB || instruction == MemonicType::HLT {
-            return State::Stop;
-        }
         match label {
             Some(label) => {
-                let addr = self.label_lookup.get(label);
-                match addr {
-                    Some(address) => {
-                        mailbox.set_instruction(self.current_line, instruction, Some(*address));
-                        State::Ok(())
+                if instruction == MemonicType::DAT {
+                    if let Ok(value) = label.parse() {
+                        mailbox.set(
+                            self.current_line,
+                            OpCode::from_mnemonic_type(instruction, Some(value))
+                                .to_numeric_representation(),
+                        );
                     }
-                    None => State::Err(ParserError::UnsetLabel(
-                        self.current_line,
-                        label.to_string(),
-                    )),
+
+                    State::Ok(())
+                } else {
+                    let addr = self.label_lookup.get(label);
+                    match addr {
+                        Some(address) => {
+                            mailbox.set_instruction(self.current_line, instruction, Some(*address));
+                            State::Ok(())
+                        }
+                        None => State::Err(ParserError::UnsetLabel(
+                            self.current_line,
+                            label.to_string(),
+                        )),
+                    }
                 }
             }
             None => {
@@ -93,32 +100,7 @@ impl Parser {
                     break;
                 }
                 (Some(first_word), Some(second_word), third_word, comment) => {
-                    // Left Instruction Right //Comment
-                    if second_word == "DAT" {
-                        // Left DAT Right
-                        if comment.unwrap_or("//").starts_with("//") {
-                            // ignore comment
-                        } else {
-                            return Err(EndOfLineExpected(self.current_line));
-                        }
-                        if let Some(third_word) = third_word {
-                            if let Ok(num) = third_word.parse() {
-                                self.label_lookup.insert(first_word.to_string(), num);
-                                self.current_line -= 1;
-                                continue;
-                            } else if third_word.starts_with("//") {
-                                // Left DAT //Comment
-                            } else {
-                                return Err(NumberExpected(self.current_line));
-                            }
-                        } else {
-                            // Left DAT
-                            if MemonicType::from_string(first_word).is_none() {
-                                self.label_lookup
-                                    .insert(first_word.to_string(), self.current_line);
-                            }
-                        }
-                    } else if MemonicType::from_string(first_word).is_none() {
+                    if MemonicType::from_string(first_word).is_none() {
                         self.label_lookup
                             .insert(first_word.to_string(), self.current_line);
                     }

@@ -1,7 +1,7 @@
      INP
      OUT
 LOOP BRZ QUIT
-     SUB ONE // 207, got 201
+     SUB ONE
      OUT
      BRA LOOP
 QUIT HLT

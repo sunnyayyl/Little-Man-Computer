@@ -39,7 +39,7 @@ macro_rules! mnemonics_type_enum {
     }
 }
 
-mnemonics_type_enum!(ADD, SUB, STA, LDA, BRA, BRZ, BRP, INP, OUT, HLT, COB);
+mnemonics_type_enum!(ADD, SUB, STA, LDA, BRA, BRZ, BRP, INP, OUT, HLT, COB, DAT);
 
 fn main() {
     //let mailbox = vm::Mailbox::from(vec![901_u16, 308, 901, 309, 508, 209, 902, 000]);

@@ -152,6 +152,7 @@ impl Runtime {
             }
             OpCode::HLT(_) => return false,
             OpCode::COB(_) => return false,
+            OpCode::DAT(data) => {}
         }
         true
     }
