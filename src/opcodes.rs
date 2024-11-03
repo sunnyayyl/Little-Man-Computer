@@ -1,5 +1,8 @@
 use crate::MemonicType;
 
+pub enum OpCodeError {
+    InvalidOpCode(u16),
+}
 macro_rules! op_code_enum {
     ($($name:ident),*)=>{
         #[derive(Debug)]
@@ -12,30 +15,32 @@ macro_rules! op_code_enum {
 }
 op_code_enum!(ADD, SUB, STA, LDA, BRA, BRZ, BRP, INP, OUT, HLT, COB, DAT);
 
-impl From<u16> for OpCode {
-    fn from(code: u16) -> Self {
+impl TryFrom<u16> for OpCode {
+    type Error = OpCodeError;
+
+    fn try_from(code: u16) -> Result<Self, Self::Error> {
         if (100..=199).contains(&code) {
-            OpCode::ADD(Some(code - 100))
+            Ok(OpCode::ADD(Some(code - 100)))
         } else if (200..=299).contains(&code) {
-            OpCode::SUB(Some(code - 200))
+            Ok(OpCode::SUB(Some(code - 200)))
         } else if (300..=399).contains(&code) {
-            OpCode::STA(Some(code - 300))
+            Ok(OpCode::STA(Some(code - 300)))
         } else if (500..=599).contains(&code) {
-            OpCode::LDA(Some(code - 500))
+            Ok(OpCode::LDA(Some(code - 500)))
         } else if (600..=699).contains(&code) {
-            OpCode::BRA(Some(code - 600))
+            Ok(OpCode::BRA(Some(code - 600)))
         } else if (700..=799).contains(&code) {
-            OpCode::BRZ(Some(code - 700))
+            Ok(OpCode::BRZ(Some(code - 700)))
         } else if (800..=899).contains(&code) {
-            OpCode::BRP(Some(code - 800))
+            Ok(OpCode::BRP(Some(code - 800)))
         } else if code == 901 {
-            OpCode::INP(None)
+            Ok(OpCode::INP(None))
         } else if code == 902 {
-            OpCode::OUT(None)
+            Ok(OpCode::OUT(None))
         } else if code == 000 {
-            OpCode::HLT(None)
+            Ok(OpCode::HLT(None))
         } else {
-            panic!("Unknown numeric code: {:?}", code)
+            Err(OpCodeError::InvalidOpCode(code))
         }
     }
 }

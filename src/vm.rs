@@ -105,56 +105,63 @@ impl Runtime {
     }
     pub fn evaluate_next(&mut self) -> bool {
         // Return true to continue, false if ended (by HLT or COB)
-        let current_instruction = OpCode::from(self.get_addresses(self.program_counter));
-        self.program_counter += 1;
-        match current_instruction {
-            OpCode::ADD(addr) => {
-                let new_value =
-                    self.accumulator + self.get_addresses(addr.expect("ADD requires an address"));
-                self.accumulator = Self::wrap_between_valid_values(new_value);
-                self.negative_flag = false;
-            } // Should overflow result in a negative flag?
-            OpCode::SUB(addr) => {
-                let current_box = self.get_addresses(addr.expect("SUB requires an address"));
-                if self.accumulator < current_box {
-                    self.negative_flag = true;
-                    self.accumulator = current_box - self.accumulator;
-                } else {
-                    self.accumulator -= current_box;
+        let current_instruction = OpCode::try_from(self.get_addresses(self.program_counter));
+        if let Ok(current_instruction) = current_instruction {
+            self.program_counter += 1;
+            match current_instruction {
+                OpCode::ADD(addr) => {
+                    let new_value = self.accumulator
+                        + self.get_addresses(addr.expect("ADD requires an address"));
+                    self.accumulator = Self::wrap_between_valid_values(new_value);
+                    self.negative_flag = false;
+                } // Should overflow result in a negative flag?
+                OpCode::SUB(addr) => {
+                    let current_box = self.get_addresses(addr.expect("SUB requires an address"));
+                    if self.accumulator < current_box {
+                        self.negative_flag = true;
+                        self.accumulator = current_box - self.accumulator;
+                    } else {
+                        self.accumulator -= current_box;
+                    }
+                }
+                OpCode::STA(addr) => {
+                    self.mailbox[addr.expect("STA requires an address") as usize] = self.accumulator
+                }
+                OpCode::LDA(addr) => {
+                    self.accumulator = self.mailbox[addr.expect("LDA required an address") as usize]
+                }
+                OpCode::BRA(addr) => self.program_counter = addr.expect("BRA require an addresses"),
+                OpCode::BRZ(addr) => {
+                    if self.accumulator == 0 && !self.negative_flag {
+                        // Should the negative flag be taken into account?
+                        self.program_counter = addr.expect("BRZ require an addresses");
+                    }
+                }
+                OpCode::BRP(addr) => {
+                    if !self.negative_flag {
+                        self.program_counter = addr.expect("BRP require an addresses");
+                    }
+                }
+                OpCode::OUT(_) => println!("{}", self.accumulator),
+                OpCode::INP(_) => {
+                    let mut line = String::new();
+                    {
+                        let mut lock = stdin().lock();
+                        lock.read_line(&mut line).unwrap();
+                    }
+                    self.accumulator = line.trim().parse::<u16>().expect("Input must be a number");
+                }
+                OpCode::HLT(_) => return false,
+                OpCode::COB(_) => return false,
+                OpCode::DAT(_) => {
+                    return false; //should DAT be treated as end of program?
                 }
             }
-            OpCode::STA(addr) => {
-                self.mailbox[addr.expect("STA requires an address") as usize] = self.accumulator
-            }
-            OpCode::LDA(addr) => {
-                self.accumulator = self.mailbox[addr.expect("LDA required an address") as usize]
-            }
-            OpCode::BRA(addr) => self.program_counter = addr.expect("BRA require an addresses"),
-            OpCode::BRZ(addr) => {
-                if self.accumulator == 0 && !self.negative_flag {
-                    // Should the negative flag be taken into account?
-                    self.program_counter = addr.expect("BRZ require an addresses");
-                }
-            }
-            OpCode::BRP(addr) => {
-                if !self.negative_flag {
-                    self.program_counter = addr.expect("BRP require an addresses");
-                }
-            }
-            OpCode::OUT(_) => println!("{}", self.accumulator),
-            OpCode::INP(_) => {
-                let mut line = String::new();
-                {
-                    let mut lock = stdin().lock();
-                    lock.read_line(&mut line).unwrap();
-                }
-                self.accumulator = line.trim().parse::<u16>().expect("Input must be a number");
-            }
-            OpCode::HLT(_) => return false,
-            OpCode::COB(_) => return false,
-            OpCode::DAT(_) => {}
+            true
+        } else {
+            println!("Invalid instruction at address {}", self.program_counter);
+            false
         }
-        true
     }
     pub fn start(&mut self) {
         while self.evaluate_next() {}

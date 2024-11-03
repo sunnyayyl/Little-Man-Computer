@@ -43,15 +43,12 @@ impl Parser {
     ) -> State<(), ParserError> {
         match label {
             Some(label) => {
-                if instruction == MemonicType::DAT {
-                    if let Ok(value) = label.parse() {
-                        mailbox.set(
-                            self.current_line,
-                            OpCode::from_mnemonic_type(instruction, Some(value))
-                                .to_numeric_representation(),
-                        );
-                    }
-
+                if let Ok(value) = label.parse() {
+                    mailbox.set(
+                        self.current_line,
+                        OpCode::from_mnemonic_type(instruction, Some(value))
+                            .to_numeric_representation(),
+                    );
                     State::Ok(())
                 } else {
                     let addr = self.label_lookup.get(label);

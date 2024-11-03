@@ -43,7 +43,7 @@ mnemonics_type_enum!(ADD, SUB, STA, LDA, BRA, BRZ, BRP, INP, OUT, HLT, COB, DAT)
 
 fn main() {
     //let mailbox = vm::Mailbox::from(vec![901_u16, 308, 901, 309, 508, 209, 902, 000]);
-    let code_file = fs::File::open("code2.txt").expect("Failed to open file");
+    let code_file = fs::File::open("code3.txt").expect("Failed to open file");
     let lines: Vec<String> = BufReader::new(code_file)
         .lines()
         .collect::<Result<_, _>>()

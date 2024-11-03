@@ -1,0 +1,10 @@
+LOAD LDA 0
+     OUT
+     SUB ONE
+     BRZ ONE
+     LDA LOAD
+     ADD ONE
+     STA LOAD
+     BRA LOAD
+ONE  DAT 1
+COB
