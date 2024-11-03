@@ -116,7 +116,7 @@ impl Runtime {
             } // Should overflow result in a negative flag?
             OpCode::SUB(addr) => {
                 let current_box = self.get_addresses(addr.expect("SUB requires an address"));
-                if (self.accumulator < current_box) {
+                if self.accumulator < current_box {
                     self.negative_flag = true;
                     self.accumulator = current_box - self.accumulator;
                 } else {
@@ -152,7 +152,7 @@ impl Runtime {
             }
             OpCode::HLT(_) => return false,
             OpCode::COB(_) => return false,
-            OpCode::DAT(data) => {}
+            OpCode::DAT(_) => {}
         }
         true
     }

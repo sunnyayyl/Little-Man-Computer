@@ -6,30 +6,20 @@ macro_rules! set_instruction {
         match $self.set_instruction(&mut $mailbox, $instruction, $third) {
             State::Ok(_) => {}
             State::Err(e) => return Err(e),
-            State::Stop => {
-                break;
-            }
         }
     };
 }
 enum State<T, E> {
     Ok(T),
     Err(E),
-    Stop,
 }
 #[derive(Debug)]
 pub enum ParserError {
-    SyntaxError(u16),
     InstructionExpected(u16),
     EndOfLineExpected(u16),
     UnsetLabel(u16, String),
     NumberExpected(u16),
     InstructionUsedAsLabel(u16, String),
-}
-struct Line {
-    left: Option<String>,
-    instruction: MemonicType,
-    right: Option<String>,
 }
 pub struct Parser {
     lines: Vec<String>,
@@ -44,9 +34,6 @@ impl Parser {
             current_line: 0,
             label_lookup: Default::default(),
         }
-    }
-    fn add_label(&mut self, label: String, address: u16) {
-        self.label_lookup.insert(label, address);
     }
     fn set_instruction(
         &self,
@@ -99,7 +86,7 @@ impl Parser {
                     //blank line
                     break;
                 }
-                (Some(first_word), Some(second_word), third_word, comment) => {
+                (Some(first_word), Some(_), _, _) => {
                     if MemonicType::from_string(first_word).is_none() {
                         self.label_lookup
                             .insert(first_word.to_string(), self.current_line);
@@ -128,9 +115,8 @@ impl Parser {
                     //blank line
                     break;
                 }
-                (Some(instruction_literal), None, None, None) => {
+                (Some(first_word), None, None, None) => {
                     // Instruction only
-                    let first_word = first_word.unwrap();
                     if let Some(instruction) = MemonicType::from_string(first_word) {
                         let l: Option<&str> = None;
                         set_instruction!(self, mailbox, instruction, l)
