@@ -1,17 +1,17 @@
+mod assembler;
 mod opcodes;
-mod parser;
 pub mod vm;
 
 pub use opcodes::OpCode;
 use std::fmt::Display;
-use std::fs;
 use std::io::{BufRead, BufReader};
+use std::{env, fs};
 pub use vm::Mailbox;
 
 macro_rules! mnemonics_type_enum {
     ($($name:ident),*)=>{
         #[derive(Debug,PartialEq)]
-        enum MemonicType{
+        pub enum MemonicType{
             $(
                 $name,
             )*
@@ -42,29 +42,35 @@ macro_rules! mnemonics_type_enum {
 mnemonics_type_enum!(ADD, SUB, STA, LDA, BRA, BRZ, BRP, INP, OUT, HLT, COB, DAT);
 
 fn main() {
-    //let mailbox = vm::Mailbox::from(vec![901_u16, 308, 901, 309, 508, 209, 902, 000]);
-    let code_file = fs::File::open("code3.txt").expect("Failed to open file");
-    let lines: Vec<String> = BufReader::new(code_file)
-        .lines()
-        .collect::<Result<_, _>>()
-        .expect("Failed to read file");
-    let mailbox = parser::Parser::new(lines).parse().unwrap();
-    println!("{:?}", mailbox);
-    {
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open("mailbox.bin")
-            .expect("Failed to create file");
-        mailbox.export_to_file(&mut file).unwrap();
-    } // just to test the exporting and importing functionality
-    let mut file = fs::OpenOptions::new()
-        .read(true)
-        .open("mailbox.bin")
-        .expect("Failed to open file");
-    let test = Mailbox::read_from_file(&mut file).unwrap();
-    println!("{:?}", test);
-    let mut r = vm::Runtime::new(mailbox);
-    r.start();
+    let args: Vec<String> = env::args().collect();
+    if args.len() > 2 {
+        if args[1] == "assemble" {
+            let target_file =
+                args[2].split(".").collect::<Vec<&str>>()[0].to_owned() + "_mailbox.bin";
+            println!("Compiling file {} into {}", args[2], target_file);
+            let code_file = fs::File::open(args[2].as_str()).expect("Failed to open file");
+            let lines: Vec<String> = BufReader::new(code_file)
+                .lines()
+                .collect::<Result<_, _>>()
+                .expect("Failed to read file");
+            let mailbox = assembler::Parser::new(lines).parse().unwrap();
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(target_file)
+                .expect("Failed to create file");
+            mailbox.export_to_file(&mut file).unwrap();
+        } else if args[1] == "run" {
+            let mut file = fs::OpenOptions::new()
+                .read(true)
+                .open(&args[2])
+                .expect("Failed to open file");
+            let mailbox = Mailbox::read_from_file(&mut file).unwrap();
+            let mut r = vm::Runtime::new(mailbox);
+            r.start();
+        } else {
+            println!("Invalid command: {}", args[1]);
+        }
+    }
 }

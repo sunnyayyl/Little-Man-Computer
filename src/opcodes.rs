@@ -1,5 +1,6 @@
 use crate::MemonicType;
 
+#[derive(Debug)]
 pub enum OpCodeError {
     InvalidOpCode(u16),
 }

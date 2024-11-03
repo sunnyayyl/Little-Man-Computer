@@ -160,10 +160,30 @@ impl Runtime {
             true
         } else {
             println!("Invalid instruction at address {}", self.program_counter);
+            println!("{:?}", self.mailbox);
             false
         }
     }
     pub fn start(&mut self) {
         while self.evaluate_next() {}
+    }
+    pub fn debug(&mut self) {
+        println!(
+            "Accumulator: {}, Program counter: {}, Current instruction:{:?}, Negative flag: {}",
+            self.accumulator,
+            self.program_counter,
+            OpCode::try_from(self.get_addresses(self.program_counter)),
+            self.negative_flag
+        );
+        while self.evaluate_next() {
+            // println!("{:?}",self.mailbox);
+            println!(
+                "Accumulator: {}, Program counter: {}, Current instruction:{:?}, Negative flag: {}",
+                self.accumulator,
+                self.program_counter,
+                OpCode::try_from(self.get_addresses(self.program_counter)),
+                self.negative_flag
+            );
+        }
     }
 }

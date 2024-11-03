@@ -1,4 +1,6 @@
-use crate::parser::ParserError::{EndOfLineExpected, InstructionExpected, InstructionUsedAsLabel};
+use crate::assembler::ParserError::{
+    EndOfLineExpected, InstructionExpected, InstructionUsedAsLabel,
+};
 use crate::{Mailbox, MemonicType, OpCode};
 use std::collections::HashMap;
 macro_rules! set_instruction {
@@ -18,7 +20,6 @@ pub enum ParserError {
     InstructionExpected(u16),
     EndOfLineExpected(u16),
     UnsetLabel(u16, String),
-    NumberExpected(u16),
     InstructionUsedAsLabel(u16, String),
 }
 pub struct Parser {
