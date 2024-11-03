@@ -1,4 +1,4 @@
-use crate::OpCode;
+use crate::{MemonicType, OpCode};
 use bytemuck::checked::{cast_slice, try_cast_slice, CheckedCastError};
 use std::fs::File;
 use std::io::{stdin, BufRead, Read, Write};
@@ -10,7 +10,14 @@ pub enum MailboxError {
 }
 #[derive(Debug)]
 pub struct Mailbox(pub [u16; 100]);
+
 impl Mailbox {
+    pub fn set_instruction(&mut self, index: u16, p0: MemonicType, p1: Option<u16>) {
+        self.set(
+            index,
+            OpCode::from_mnemonic_type(p0, p1).to_numeric_representation(),
+        )
+    }
     pub fn export_to_file(&self, file: &mut File) -> Result<(), MailboxError> {
         match file.write_all(cast_slice::<u16, u8>(self.0.as_slice())) {
             Ok(_) => Ok(()),

@@ -1,0 +1,8 @@
+     INP
+     OUT
+LOOP BRZ QUIT
+     SUB ONE // 207, got 201
+     OUT
+     BRA LOOP
+QUIT HLT
+ONE  DAT 1

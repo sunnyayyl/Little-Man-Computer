@@ -1,144 +1,225 @@
-use crate::{Mailbox, MemonicType, OpCode};
-use std::collections::hash_map::Entry;
+use crate::parser::ParserError::{
+    EndOfLineExpected, InstructionExpected, InstructionUsedAsLabel, NumberExpected,
+};
+use crate::{Mailbox, MemonicType};
 use std::collections::HashMap;
-#[derive(Debug)]
-enum ParserError {
-    InvalidInstruction(String),
-    InstructionExpected,
+macro_rules! set_instruction {
+    ($self:ident,$mailbox:ident,$instruction:ident,$third:ident) => {
+        match $self.set_instruction(&mut $mailbox, $instruction, $third) {
+            State::Ok(_) => {}
+            State::Err(e) => return Err(e),
+            State::Stop => {
+                break;
+            }
+        }
+    };
 }
-struct Token {
+enum State<T, E> {
+    Ok(T),
+    Err(E),
+    Stop,
+}
+#[derive(Debug)]
+pub enum ParserError {
+    SyntaxError(u16),
+    InstructionExpected(u16),
+    EndOfLineExpected(u16),
+    UnsetLabel(u16, String),
+    NumberExpected(u16),
+    InstructionUsedAsLabel(u16, String),
+}
+struct Line {
     left: Option<String>,
     instruction: MemonicType,
     right: Option<String>,
 }
-pub(crate) struct Lexer<'a> {
-    source: &'a [char],
-    current_position: usize,
-    current_character: char,
+pub struct Parser {
+    lines: Vec<String>,
+    current_line: u16,
     label_lookup: HashMap<String, u16>,
-    counter: u16,
 }
 
-impl<'a> Lexer<'a> {
-    pub(crate) fn new(s: &'a [char]) -> Self {
-        let lexer = Lexer {
-            source: s,
-            current_position: 0,
-            current_character: s[0],
-            label_lookup: HashMap::new(),
-            counter: 0,
-        };
-        lexer
+impl Parser {
+    pub fn new(buffer: Vec<String>) -> Self {
+        Self {
+            lines: buffer,
+            current_line: 0,
+            label_lookup: Default::default(),
+        }
     }
-    fn read_label(&mut self) -> Option<String> {
-        let original_position = self.current_position;
-        let s = self.read_string();
-        match s {
-            Some(s) => {
-                if MemonicType::from_string(&s).is_none() {
-                    Some(s)
-                } else {
-                    self.current_position = original_position;
-                    self.current_character = self.source[original_position];
-                    None
+    fn add_label(&mut self, label: String, address: u16) {
+        self.label_lookup.insert(label, address);
+    }
+    fn set_instruction(
+        &self,
+        mailbox: &mut Mailbox,
+        instruction: MemonicType,
+        label: Option<&str>,
+    ) -> State<(), ParserError> {
+        if instruction == MemonicType::COB || instruction == MemonicType::HLT {
+            return State::Stop;
+        }
+        match label {
+            Some(label) => {
+                let addr = self.label_lookup.get(label);
+                match addr {
+                    Some(address) => {
+                        mailbox.set_instruction(self.current_line, instruction, Some(*address));
+                        State::Ok(())
+                    }
+                    None => State::Err(ParserError::UnsetLabel(
+                        self.current_line,
+                        label.to_string(),
+                    )),
                 }
             }
-            None => None,
+            None => {
+                mailbox.set_instruction(self.current_line, instruction, None);
+                State::Ok(())
+            }
         }
     }
-    fn read_string(&mut self) -> Option<String> {
-        let original_position = self.current_position;
-        let mut string = String::new();
-        while self.current_character.is_alphabetic() {
-            string.push(self.current_character);
-            self.next();
-        }
-        if string.is_empty() {
-            self.current_position = original_position;
-            self.current_character = self.source[original_position];
-            None
-        } else {
-            Some(string)
-        }
-    }
-    fn next(&mut self) {
-        self.current_position += 1;
-        if self.current_position < self.source.len() {
-            self.current_character = self.source[self.current_position];
-        } else {
-            self.current_character = '\0';
-        }
-    }
-    fn read_instruction(&mut self) -> Result<MemonicType, ParserError> {
-        let instruction = self.read_string();
-        match instruction {
-            Some(s) => match s.as_str() {
-                "ADD" => Ok(MemonicType::ADD),
-                "SUB" => Ok(MemonicType::SUB),
-                "STA" => Ok(MemonicType::STA),
-                "LDA" => Ok(MemonicType::LDA),
-                "BRA" => Ok(MemonicType::BRA),
-                "BRZ" => Ok(MemonicType::BRZ),
-                "BRP" => Ok(MemonicType::BRP),
-                "INP" => Ok(MemonicType::INP),
-                "OUT" => Ok(MemonicType::OUT),
-                "HLT" => Ok(MemonicType::HLT),
-                "COB" => Ok(MemonicType::COB),
-                _ => Err(ParserError::InvalidInstruction(s)),
-            },
-            None => Err(ParserError::InstructionExpected),
-        }
-    }
-    fn read_line(&mut self) -> OpCode {
-        let left = self.read_label();
-        let instruction = self.read_instruction();
-        let right = self.read_label();
-        match instruction {
-            Ok(i) => {
-                if let Some(s) = left {
-                    let entry = self.label_lookup.entry(s);
-                    if let Entry::Vacant(e) = entry {
-                        e.insert(self.counter);
-                    } else {
-                        entry.or_insert(self.counter); // Should I panic here instead? Can the label be overwritten?
+    pub fn parse(&mut self) -> Result<Mailbox, ParserError> {
+        self.current_line = (self.lines.len() - 1) as u16;
+        for line in self.lines.iter().rev() {
+            let mut words = line.split_whitespace();
+            let first_word = words.next();
+            let second_word = words.next();
+            let third_word = words.next();
+            let forth_word = words.next();
+            match (first_word, second_word, third_word, forth_word) {
+                (None, None, None, None) => {
+                    //blank line
+                    break;
+                }
+                (Some(first_word), Some(second_word), third_word, comment) => {
+                    // Left Instruction Right //Comment
+                    if second_word == "DAT" {
+                        // Left DAT Right
+                        if comment.unwrap_or("//").starts_with("//") {
+                            // ignore comment
+                        } else {
+                            return Err(EndOfLineExpected(self.current_line));
+                        }
+                        if let Some(third_word) = third_word {
+                            if let Ok(num) = third_word.parse() {
+                                self.label_lookup.insert(first_word.to_string(), num);
+                                self.current_line -= 1;
+                                continue;
+                            } else if third_word.starts_with("//") {
+                                // Left DAT //Comment
+                            } else {
+                                return Err(NumberExpected(self.current_line));
+                            }
+                        } else {
+                            // Left DAT
+                            if MemonicType::from_string(first_word).is_none() {
+                                self.label_lookup
+                                    .insert(first_word.to_string(), self.current_line);
+                            }
+                        }
+                    } else if MemonicType::from_string(first_word).is_none() {
+                        self.label_lookup
+                            .insert(first_word.to_string(), self.current_line);
                     }
                 }
-                if let Some(s) = right {
-                    return OpCode::from_mnemonic_type(i, Some(self.label_lookup[&s]));
+                (Some(instruction), None, None, None) => {
+                    assert!(MemonicType::from_string(instruction).is_some());
                 }
-                // compile time check for instruction that needs an address
-                match i {
-                    MemonicType::INP => OpCode::INP(None),
-                    MemonicType::OUT => OpCode::OUT(None),
-                    MemonicType::HLT => OpCode::HLT(None),
-                    MemonicType::COB => OpCode::COB(None),
-                    _ => panic!("{} requires an address", i),
-                }
+                (_, _, _, _) => todo!(),
             }
-            Err(e) => {
-                panic!("Error reading instruction: {:?}", e);
+            if self.current_line > 0 {
+                self.current_line -= 1;
             }
         }
-    }
-    fn consume_whitespace(&mut self) {
-        while self.current_character.is_whitespace() {
-            self.next();
+        println!("{:?}", self.label_lookup);
+        self.current_line = 0;
+        let mut mailbox = Mailbox([0_u16; 100]);
+        for line in &self.lines {
+            let mut words = line.split_whitespace();
+            let first_word = words.next();
+            let second_word = words.next();
+            let third_word = words.next();
+            let forth_word = words.next();
+            match (first_word, second_word, third_word, forth_word) {
+                (None, None, None, None) => {
+                    //blank line
+                    break;
+                }
+                (Some(instruction_literal), None, None, None) => {
+                    // Instruction only
+                    let first_word = first_word.unwrap();
+                    if let Some(instruction) = MemonicType::from_string(first_word) {
+                        let l: Option<&str> = None;
+                        set_instruction!(self, mailbox, instruction, l)
+                    } else {
+                        return Err(InstructionExpected(self.current_line));
+                    }
+                }
+                (Some(first_word), Some(second_word), None, None) => {
+                    if let Some(instruction) = MemonicType::from_string(first_word) {
+                        // Instruction Right
+                        let l: Option<&str> = Some(second_word);
+                        set_instruction!(self, mailbox, instruction, l)
+                    } else if let Some(instruction) = MemonicType::from_string(second_word) {
+                        // Left Instruction
+                        self.label_lookup
+                            .insert(first_word.to_string(), self.current_line);
+                        let l: Option<&str> = None;
+                        set_instruction!(self, mailbox, instruction, l)
+                    } else {
+                        return Err(InstructionExpected(self.current_line));
+                    }
+                }
+                (Some(first_word), Some(second_word), third_word, forth_word) => {
+                    if third_word.unwrap_or("//").starts_with("//") {
+                        if let Some(instruction) = MemonicType::from_string(first_word) {
+                            // Instruction Right //comment
+                            let l: Option<&str> = Some(second_word);
+                            set_instruction!(self, mailbox, instruction, l)
+                        } else if let Some(instruction) = MemonicType::from_string(second_word) {
+                            // Left Instruction //comment
+                            self.label_lookup
+                                .insert(first_word.to_string(), self.current_line);
+                            let l: Option<&str> = None;
+                            set_instruction!(self, mailbox, instruction, l)
+                        }
+                    } else if let Some(third_word) = third_word {
+                        // Left Instruction Right //Comment
+                        if MemonicType::from_string(first_word).is_some() {
+                            // Label cannot have the same name as instruction
+                            return Err(InstructionUsedAsLabel(
+                                self.current_line,
+                                first_word.to_string(),
+                            ));
+                        } else if MemonicType::from_string(third_word).is_some() {
+                            return Err(InstructionUsedAsLabel(
+                                self.current_line,
+                                third_word.to_string(),
+                            ));
+                        }
+                        if forth_word.unwrap_or("//").starts_with("//") {
+                            // ignore comment
+                        } else {
+                            return Err(EndOfLineExpected(self.current_line));
+                        }
+                        if let Some(instruction) = MemonicType::from_string(second_word) {
+                            self.label_lookup
+                                .insert(first_word.to_string(), self.current_line);
+                            let l: Option<&str> = Some(third_word);
+                            set_instruction!(self, mailbox, instruction, l)
+                        } else {
+                            return Err(InstructionExpected(self.current_line));
+                        }
+                    } else {
+                        todo!()
+                    }
+                }
+
+                (_, _, _, _) => return Err(InstructionExpected(self.current_line)),
+            }
+            self.current_line += 1;
         }
-    }
-    pub(crate) fn parse(&mut self) -> Mailbox {
-        let mut mailbox = Mailbox([0; 100]);
-        while self.current_character != '\0' {
-            mailbox.set(self.counter, self.read_line().to_numeric_representation());
-            self.counter += 1;
-            assert!(
-                self.current_character == '\n'
-                    || self.current_character == '\0'
-                    || self.current_character == '\r'
-                    || self.current_character == '\n'
-            );
-            self.next();
-            self.consume_whitespace();
-        }
-        mailbox
+        Ok(mailbox)
     }
 }
