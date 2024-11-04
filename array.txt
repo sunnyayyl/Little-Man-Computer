@@ -1,0 +1,21 @@
+LOOP    LDA START
+        OUT
+        LDA LOOP
+        ADD ONE
+        STA LOOP
+        LDA COUNT
+        ADD ONE
+        STA COUNT
+        LDA LENGTH
+        SUB ONE
+        SUB COUNT
+        BRP LOOP
+        COB
+COUNT DAT 0
+ONE DAT 1
+TEMP DAT
+LENGTH DAT 4
+START DAT 2
+DAT 4
+DAT 16
+DAT 32

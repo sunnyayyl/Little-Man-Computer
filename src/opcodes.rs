@@ -14,7 +14,7 @@ macro_rules! op_code_enum {
         }
     }
 }
-op_code_enum!(ADD, SUB, STA, LDA, BRA, BRZ, BRP, INP, OUT, HLT, COB, DAT);
+op_code_enum!(ADD, SUB, STA, LDA, BRA, BRZ, BRP, INP, OUT, HLT, COB, DAT, SOUT); // Added SOUT, StringOutput
 
 impl TryFrom<u16> for OpCode {
     type Error = OpCodeError;
@@ -38,6 +38,8 @@ impl TryFrom<u16> for OpCode {
             Ok(OpCode::INP(None))
         } else if code == 902 {
             Ok(OpCode::OUT(None))
+        } else if code == 904 {
+            Ok(OpCode::SOUT(None))
         } else if code == 000 {
             Ok(OpCode::HLT(None))
         } else {
@@ -60,6 +62,7 @@ impl OpCode {
             MemonicType::HLT => OpCode::HLT(addresses),
             MemonicType::COB => OpCode::COB(addresses),
             MemonicType::DAT => OpCode::DAT(addresses.unwrap_or(0).into()),
+            MemonicType::SOUT => OpCode::SOUT(addresses),
         }
     }
     pub fn to_numeric_representation(&self) -> u16 {
@@ -76,6 +79,7 @@ impl OpCode {
             OpCode::HLT(_) => 000,
             OpCode::COB(_) => 000,
             OpCode::DAT(a) => a.unwrap_or(0),
+            OpCode::SOUT(_) => 904,
         }
     }
 }
