@@ -153,9 +153,7 @@ impl Runtime {
                 }
                 OpCode::HLT(_) => return false,
                 OpCode::COB(_) => return false,
-                OpCode::DAT(_) => {
-                    return false; //should DAT be treated as end of program?
-                }
+                OpCode::DAT(_) => return false, //should DAT be treated as end of program?
                 OpCode::SOUT(_) => {
                     let char = u8::try_from(self.accumulator)
                         .expect("Cannot be converted to ascii character")
