@@ -65,6 +65,10 @@ fn main() {
                 parser = Some(p);
             }
             match command.as_str() {
+                "run" => {
+                    let mut runtime = vm::Runtime::new(mailbox);
+                    runtime.start();
+                }
                 "assemble" => {
                     let target_filename =
                         filename.split(".").collect::<Vec<&str>>()[0].to_owned() + "_mailbox.bin"; // slightly scuffed
@@ -76,10 +80,7 @@ fn main() {
                         .expect("Failed to create file");
                     mailbox.export_to_file(&mut target_file).expect("Failed to write assembled file");
                 }
-                "run" => {
-                    let mut runtime = vm::Runtime::new(mailbox);
-                    runtime.start();
-                }
+
                 "debug" => {
                     let mut label_info: HashMap<u16, String> = HashMap::new();
                     if let Some(parser) = parser {
@@ -91,12 +92,12 @@ fn main() {
                         print!("\n(debug) ");
                         stdout().flush().expect("Failed to flush screen");
                         let _ = stdin().read_line(&mut input).expect("Failed to read line");
-                        match input.trim() {
-                            "run" => {
+                        match input.trim().split(' ').collect::<Vec<&str>>().as_slice() {
+                            ["run"] => {
                                 runtime.start();
                                 return;
                             }
-                            "step" => {
+                            ["step"] => {
                                 let line = runtime.get_program_counter();
                                 let current = runtime.get_current_instruction();
                                 let mut line_label = String::from("");
@@ -117,11 +118,23 @@ fn main() {
                                 }
                                 runtime.evaluate_next();
                             }
-                            "mailbox" => println!("{:?}", runtime.get_mailbox()),
-                            "counter" => println!("{}", runtime.get_program_counter()),
-                            "program_counter" => println!("{}", runtime.get_program_counter()),
-                            "accumulator" => println!("{}", runtime.get_accumulator()),
-                            "help" => println!("Available command: step, mailbox, counter, program_counter or counter, accumulator"),
+                            ["mailbox"] => println!("{:?}", runtime.get_mailbox()),
+                            ["get", addr] => {
+                                let addr = addr.parse::<usize>();
+                                if let Ok(addr) = addr {
+                                    if (0..=999).contains(&addr) {
+                                        println!("{}", runtime.get_mailbox()[addr]);
+                                    } else {
+                                        println!("Mailbox addresses can only be between 0-999")
+                                    }
+                                } else {
+                                    println!("Mailbox addresses must be positive integer")
+                                }
+                            },
+                            ["counter"] => println!("{}", runtime.get_program_counter()),
+                            ["program_counter"] => println!("{}", runtime.get_program_counter()),
+                            ["accumulator"] => println!("{}", runtime.get_accumulator()),
+                            ["help"] => println!("Available command: step, mailbox, counter, program_counter or counter, get address-here, accumulator"),
                             _ => println!("Unknown command"),
                         }
                     }
