@@ -122,10 +122,10 @@ fn main() {
                             ["get", addr] => {
                                 let addr = addr.parse::<usize>();
                                 if let Ok(addr) = addr {
-                                    if (0..=999).contains(&addr) {
+                                    if (0..=100).contains(&addr) {
                                         println!("{}", runtime.get_mailbox()[addr]);
                                     } else {
-                                        println!("Mailbox addresses can only be between 0-999")
+                                        println!("Mailbox addresses can only be between 0-100")
                                     }
                                 } else {
                                     println!("Mailbox addresses must be positive integer")
