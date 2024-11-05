@@ -173,7 +173,7 @@ impl Runtime {
     }
     pub fn debug(&mut self) {
         println!(
-            "Accumulator: {}, Program counter: {}, Current instruction:{:?}, Negative flag: {}",
+            "\nAccumulator: {}, Program counter: {}, Current instruction:{:?}, Negative flag: {}",
             self.accumulator,
             self.program_counter,
             OpCode::try_from(self.get_addresses(self.program_counter)),
@@ -182,12 +182,30 @@ impl Runtime {
         while self.evaluate_next() {
             // println!("{:?}",self.mailbox);
             println!(
-                "Accumulator: {}, Program counter: {}, Current instruction:{:?}, Negative flag: {}",
+                "\nAccumulator: {}, Program counter: {}, Current instruction:{:?}, Negative flag: {}",
                 self.accumulator,
                 self.program_counter,
                 OpCode::try_from(self.get_addresses(self.program_counter)),
                 self.negative_flag
             );
+        }
+    }
+    pub fn get_mailbox(&self) -> &Mailbox {
+        &self.mailbox
+    }
+    pub fn get_program_counter(&self) -> &u16 {
+        &self.program_counter
+    }
+    pub fn get_accumulator(&self) -> &u16 {
+        &self.accumulator
+    }
+    pub fn get_current_instruction(&self) -> (Option<OpCode>, u16) {
+        let literal = self.get_addresses(self.program_counter);
+        let current_instruction = OpCode::try_from(literal);
+        if let Ok(current_instruction) = current_instruction {
+            (Some(current_instruction), literal)
+        } else {
+            (None, literal)
         }
     }
 }

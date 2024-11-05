@@ -188,4 +188,7 @@ impl Parser {
         }
         Ok(mailbox)
     }
+    pub fn get_label_lookup(&self) -> &HashMap<String, u16> {
+        &self.label_lookup
+    }
 }

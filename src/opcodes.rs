@@ -1,4 +1,5 @@
 use crate::MemonicType;
+use std::fmt::Display;
 
 #[derive(Debug)]
 pub enum OpCodeError {
@@ -11,6 +12,30 @@ macro_rules! op_code_enum {
             $(
                 $name(Option<u16>),
             )*
+        }
+        impl Display for OpCode{
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                match self {
+                    $(
+                    OpCode::$name(a) => {
+                        if let Some(addr)=a{
+                            write!(f, "{}({})", stringify!($name), addr)
+                        }else{
+                            write!(f, "{}", stringify!($name))
+                        }
+                    },
+                    )*
+                }
+            }
+        }
+        impl OpCode{
+            pub fn get_address(&self)->&Option<u16>{
+                match self {
+                    $(
+                    OpCode::$name(a) => a,
+                    )*
+                }
+            }
         }
     }
 }
