@@ -87,6 +87,7 @@ fn main() {
                         label_info = parser.get_label_lookup().iter().map(|(k, v)| (*v, k.clone())).collect();
                     }
                     let mut runtime = vm::Runtime::new(mailbox);
+                    let mut breakpoints: std::vec::Vec<u16> = vec![];
                     loop {
                         let mut input = String::new();
                         print!("\n(debug) ");
@@ -94,8 +95,11 @@ fn main() {
                         let _ = stdin().read_line(&mut input).expect("Failed to read line");
                         match input.trim().split(' ').collect::<Vec<&str>>().as_slice() {
                             ["run"] => {
-                                runtime.start();
-                                return;
+                                while !breakpoints.contains(runtime.get_program_counter()) && runtime.evaluate_current() {}
+                                let addr = runtime.get_program_counter();
+                                if breakpoints.contains(addr) {
+                                    println!("(Breakpoint hit at address: {})", addr);
+                                }
                             }
                             ["step"] => {
                                 let line = runtime.get_program_counter();
@@ -116,7 +120,7 @@ fn main() {
                                 } else if let (None, literal) = current {
                                     println!("{}{}", line_label, literal);
                                 }
-                                runtime.evaluate_next();
+                                runtime.evaluate_current();
                             }
                             ["mailbox"] => println!("{:?}", runtime.get_mailbox()),
                             ["get", addr] => {
@@ -124,6 +128,18 @@ fn main() {
                                 if let Ok(addr) = addr {
                                     if (0..=100).contains(&addr) {
                                         println!("{}", runtime.get_mailbox()[addr]);
+                                    } else {
+                                        println!("Mailbox addresses can only be between 0-100")
+                                    }
+                                } else {
+                                    println!("Mailbox addresses must be positive integer")
+                                }
+                            },
+                            ["breakpoint", addr] => {
+                                let addr = addr.parse::<usize>();
+                                if let Ok(addr) = addr {
+                                    if (0..=100).contains(&addr) {
+                                        breakpoints.push(addr as u16);
                                     } else {
                                         println!("Mailbox addresses can only be between 0-100")
                                     }

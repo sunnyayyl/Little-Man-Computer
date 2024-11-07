@@ -103,7 +103,7 @@ impl Runtime {
             mailbox,
         }
     }
-    pub fn evaluate_next(&mut self) -> bool {
+    pub fn evaluate_current(&mut self) -> bool {
         // Return true to continue, false if ended (by HLT or COB)
         let current_instruction = OpCode::try_from(self.get_addresses(self.program_counter));
         if let Ok(current_instruction) = current_instruction {
@@ -169,7 +169,7 @@ impl Runtime {
         }
     }
     pub fn start(&mut self) {
-        while self.evaluate_next() {}
+        while self.evaluate_current() {}
     }
     pub fn debug(&mut self) {
         println!(
@@ -179,7 +179,7 @@ impl Runtime {
             OpCode::try_from(self.get_addresses(self.program_counter)),
             self.negative_flag
         );
-        while self.evaluate_next() {
+        while self.evaluate_current() {
             // println!("{:?}",self.mailbox);
             println!(
                 "\nAccumulator: {}, Program counter: {}, Current instruction:{:?}, Negative flag: {}",
