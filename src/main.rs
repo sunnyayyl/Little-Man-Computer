@@ -2,7 +2,7 @@ mod assembler;
 mod opcodes;
 pub mod vm;
 
-use crate::assembler::Parser;
+use crate::assembler::Assembler;
 pub use opcodes::OpCode;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -12,7 +12,7 @@ pub use vm::Mailbox;
 
 macro_rules! mnemonics_type_enum {
     ($($name:ident),*)=>{
-        #[derive(Debug,PartialEq)]
+        #[derive(Debug,PartialEq,Clone, Copy)]
         pub enum MemonicType{
             $(
                 $name,
@@ -43,10 +43,35 @@ macro_rules! mnemonics_type_enum {
 mnemonics_type_enum!(ADD, SUB, STA, LDA, BRA, BRZ, BRP, INP, OUT, HLT, COB, DAT, SOUT);
 
 fn main() {
+    /*let args: Vec<String> = env::args().collect();
+    if let Some(command) = args.get(1) {
+        if let Some(filename) = args.get(2) {
+            let mut mailbox=Mailbox([0_u16;100]);
+            let label_lookup;
+            let lexer_result;
+            {
+                let mut file = fs::OpenOptions::new()
+                    .read(true)
+                    .open(filename)
+                    .expect("Failed to open file");
+                let lines = BufReader::new(&mut file);
+                let mut lexer = assembler::Lexer::new();
+                lexer_result = lexer.parse(lines);
+                label_lookup = lexer.get_label_lookup();
+                println!("{:?}", lexer_result);
+                println!("{:?}", label_lookup);
+            }
+            let mut assembler = Assembler::new(lexer_result.expect("Lexer error"), label_lookup);
+            while let State::Ok(opcode) = assembler.parse_line(){
+                mailbox.set(assembler.current_line(),opcode.to_numeric_representation())
+            }
+        }
+    }*/
+
     let args: Vec<String> = env::args().collect();
     if let Some(command) = args.get(1) {
         let mailbox: Mailbox;
-        let mut parser: Option<Parser> = None;
+        let label_lookup: HashMap<String, u16> = HashMap::new();
         if let Some(filename) = args.get(2) {
             let mut file = fs::OpenOptions::new()
                 .read(true)
@@ -56,13 +81,35 @@ fn main() {
                 let mailbox_from_bin = Mailbox::read_from_file(&mut file);
                 mailbox = mailbox_from_bin.expect("Failed to read mailbox");
             } else {
-                let lines = BufReader::new(&mut file)
-                    .lines()
-                    .collect::<Result<_, _>>()
-                    .expect("Failed to read file");
-                let mut p = assembler::Parser::new(lines);
-                mailbox = p.parse().unwrap();
-                parser = Some(p);
+                let mut new_mailbox = Mailbox([0_u16; 100]);
+                let label_lookup;
+                let lexer_result;
+                {
+                    let mut file = fs::OpenOptions::new()
+                        .read(true)
+                        .open(filename)
+                        .expect("Failed to open file");
+                    let lines = BufReader::new(&mut file);
+                    let mut lexer = assembler::Lexer::new();
+                    (lexer_result, label_lookup) = lexer.parse(lines);
+                }
+                let mut assembler =
+                    Assembler::new(lexer_result.expect("Lexer error"), label_lookup);
+                loop {
+                    match assembler.parse_line() {
+                        assembler::State::Ok(opcode) => {
+                            new_mailbox.set(
+                                assembler.current_line() - 1,
+                                opcode.to_numeric_representation(),
+                            );
+                        }
+                        assembler::State::Err(err) => panic!("{:?}", err),
+                        assembler::State::Done => break,
+                    }
+                }
+
+                mailbox = new_mailbox;
+                println!("{:?}", mailbox);
             }
             match command.as_str() {
                 "run" => {
@@ -82,10 +129,7 @@ fn main() {
                 }
 
                 "debug" => {
-                    let mut label_info: HashMap<u16, String> = HashMap::new();
-                    if let Some(parser) = parser {
-                        label_info = parser.get_label_lookup().iter().map(|(k, v)| (*v, k.clone())).collect();
-                    }
+                    let mut label_info: HashMap<u16, String> = label_lookup.iter().map(|(k, v)| (*v, k.clone())).collect();
                     let mut runtime = vm::Runtime::new(mailbox);
                     let mut breakpoints: std::vec::Vec<u16> = vec![];
                     loop {
@@ -134,7 +178,7 @@ fn main() {
                                 } else {
                                     println!("Mailbox addresses must be positive integer")
                                 }
-                            },
+                            }
                             ["breakpoint", addr] => {
                                 let addr = addr.parse::<usize>();
                                 if let Ok(addr) = addr {
@@ -146,7 +190,7 @@ fn main() {
                                 } else {
                                     println!("Mailbox addresses must be positive integer")
                                 }
-                            },
+                            }
                             ["counter"] => println!("{}", runtime.get_program_counter()),
                             ["program_counter"] => println!("{}", runtime.get_program_counter()),
                             ["accumulator"] => println!("{}", runtime.get_accumulator()),
