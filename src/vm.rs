@@ -87,7 +87,7 @@ pub struct Runtime {
 impl Runtime {
     fn wrap_between_valid_values(value: u16) -> u16 {
         if value > 999 {
-            value - 1000
+            return Self::wrap_between_valid_values(value - 1000);
         } else {
             value
         }
