@@ -27,7 +27,7 @@ fn main() {
                 let mailbox_from_bin = Mailbox::read_from_file(&mut file);
                 mailbox = mailbox_from_bin.expect("Failed to read mailbox");
             } else {
-                let mut new_mailbox = Mailbox([0_u16; 100]);
+                let mut new_mailbox = Mailbox::new();
                 let label_lookup;
                 let lexer_result: LexerLineStructure;
                 {
@@ -54,10 +54,8 @@ fn main() {
                 loop {
                     match assembler.parse_line() {
                         assembler::State::Ok(opcode) => {
-                            new_mailbox.set(
-                                assembler.current_line() - 1,
-                                opcode.to_numeric_representation(),
-                            );
+                            new_mailbox[assembler.current_line() - 1] =
+                                opcode.to_numeric_representation();
                         }
                         assembler::State::Err(err) => {
                             println!("{}", err);
@@ -141,10 +139,10 @@ fn main() {
                             ["breakpoint", addr] => {
                                 let addr = addr.parse::<usize>();
                                 if let Ok(addr) = addr {
-                                    if (0..=100).contains(&addr) {
+                                    if (0..=99).contains(&addr) {
                                         breakpoints.push(addr as u16);
                                     } else {
-                                        println!("Mailbox addresses can only be between 0-100")
+                                        println!("Mailbox addresses can only be between 0-99")
                                     }
                                 } else {
                                     println!("Mailbox addresses must be positive integer")

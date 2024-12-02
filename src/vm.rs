@@ -9,14 +9,20 @@ pub enum MailboxError {
     Cast(CheckedCastError),
 }
 #[derive(Debug)]
-pub struct Mailbox(pub [u16; 100]);
+pub struct Mailbox([u16; 100]);
+
+impl Default for Mailbox {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Mailbox {
+    pub fn new() -> Self {
+        Self([0; 100])
+    }
     pub fn set_instruction(&mut self, index: u16, p0: MemonicType, p1: Option<u16>) {
-        self.set(
-            index,
-            OpCode::from_mnemonic_type(p0, p1).to_numeric_representation(),
-        )
+        self[index] = OpCode::from_mnemonic_type(p0, p1).to_numeric_representation();
     }
     pub fn export_to_file(&self, file: &mut File) -> Result<(), MailboxError> {
         match file.write_all(cast_slice::<u16, u8>(self.0.as_slice())) {
@@ -41,15 +47,6 @@ impl Mailbox {
             Err(e) => Err(MailboxError::Io(e)),
         }
     }
-    pub fn set(&mut self, index: u16, value: u16) {
-        if !(0..=99).contains(&index) {
-            panic!("There are only 100 mailbox (0-99) addresses available")
-        }
-        if value > 999 {
-            panic!("Mailbox values must be between 0 and 999")
-        }
-        self.0[index as usize] = value;
-    }
 }
 impl Index<usize> for Mailbox {
     type Output = u16;
@@ -66,6 +63,17 @@ impl IndexMut<usize> for Mailbox {
             panic!("There are only 100 mailbox (0-99) addresses available")
         }
         &mut self.0[index]
+    }
+}
+impl Index<u16> for Mailbox {
+    type Output = u16;
+    fn index(&self, index: u16) -> &u16 {
+        &self[index as usize]
+    }
+}
+impl IndexMut<u16> for Mailbox {
+    fn index_mut(&mut self, index: u16) -> &mut u16 {
+        &mut self[index as usize]
     }
 }
 impl From<Vec<u16>> for Mailbox {
@@ -87,7 +95,7 @@ pub struct Runtime {
 impl Runtime {
     fn wrap_between_valid_values(value: u16) -> u16 {
         if value > 999 {
-            return Self::wrap_between_valid_values(value - 1000);
+            Self::wrap_between_valid_values(value - 1000)
         } else {
             value
         }
