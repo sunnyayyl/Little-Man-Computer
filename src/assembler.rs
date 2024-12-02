@@ -17,7 +17,7 @@ pub struct Assembler {
     table_lookup: HashMap<String, u16>,
     current_line: u16,
 }
-impl<'a> Assembler {
+impl Assembler {
     pub fn new(line_structure: LexerLineStructure, table_lookup: HashMap<String, u16>) -> Self {
         Self {
             line_structure,

@@ -88,7 +88,7 @@ fn main() {
                 "debug" => {
                     let label_info: HashMap<u16, String> = label_lookup.iter().map(|(k, v)| (*v, k.clone())).collect();
                     let mut runtime = vm::Runtime::new(mailbox);
-                    let mut breakpoints: std::vec::Vec<u16> = vec![];
+                    let mut breakpoints: Vec<u16> = vec![];
                     loop {
                         let mut input = String::new();
                         print!("\n(debug) ");
