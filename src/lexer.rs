@@ -2,7 +2,9 @@ use crate::error::AssemblerError;
 use crate::error::AssemblerError::{EndOfLineExpected, UnexpectedInstruction};
 use crate::MemonicType;
 use std::collections::HashMap;
-use std::io::BufRead;
+use std::io::{BufRead, Lines};
+use std::iter::Enumerate;
+
 pub type LabelLookup = HashMap<String, u16>;
 pub type LexerLineStructure = [Option<LineStructure>; 100];
 pub type LexerResult = Result<LexerLineStructure, AssemblerError>;
@@ -11,7 +13,25 @@ pub enum RightField {
     Literal(u16),
     Label(String),
 }
-
+#[derive(Debug)]
+pub enum LexerState {
+    Some(LineStructure),
+    Err(AssemblerError),
+    Skip,
+}
+impl<V: FromIterator<Option<LineStructure>>> FromIterator<LexerState>
+    for Result<V, AssemblerError>
+{
+    fn from_iter<T: IntoIterator<Item = LexerState>>(iter: T) -> Result<V, AssemblerError> {
+        iter.into_iter()
+            .map(|i| match i {
+                LexerState::Some(v) => Ok(Some(v)),
+                LexerState::Err(e) => Err(e),
+                LexerState::Skip => Ok(None),
+            })
+            .collect()
+    }
+}
 #[derive(Debug)]
 pub struct ErrorInfo {
     pub start: usize,
@@ -62,42 +82,51 @@ fn split_whitespace_with_index(s: &str) -> impl Iterator<Item = (&str, usize)> {
         .map(move |sub| (sub, sub.as_ptr() as usize - s.as_ptr() as usize))
 }
 
-pub struct Lexer {
+pub struct Lexer<T: BufRead> {
     label_lookup: LabelLookup,
+    lines: Enumerate<Lines<T>>,
+    assembly_line: usize,
 }
-impl Lexer {
-    pub fn new() -> Self {
+impl<T: BufRead> Lexer<T> {
+    pub fn new(source: T) -> Self {
         Lexer {
             label_lookup: Default::default(),
+            lines: source.lines().enumerate(),
+            assembly_line: 0,
         }
     }
-    pub fn parse<T: BufRead>(mut self, source: T) -> (LexerResult, LabelLookup) {
-        let mut line: [Option<LineStructure>; 100] = [const { None }; 100];
-        let mut current_line = 0;
-        for (file_line, v) in source.lines().enumerate() {
-            let mut expect = TokenType::Any;
-            if let Ok(line_literal) = v {
-                let mut current = LineStructure::new(file_line as u16, line_literal.clone());
-                if line_literal.trim().starts_with("//") {
-                    continue;
-                }
-                for (substring, index) in split_whitespace_with_index(&line_literal) {
-                    if substring.starts_with("//") {
-                        break;
+    pub fn get_label_lookup(&self) -> &LabelLookup {
+        &self.label_lookup
+    }
+}
+impl<T: BufRead> Iterator for Lexer<T> {
+    type Item = LexerState;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.lines.next() {
+            Some((file_line, line_literal)) => {
+                let mut expect = TokenType::Any;
+                if let Ok(line_literal) = line_literal {
+                    let mut current = LineStructure::new(file_line as u16, line_literal.clone());
+                    if line_literal.trim().starts_with("//") {
+                        return Some(LexerState::Skip);
                     }
-                    let start = index;
-                    let end = index + substring.len();
-                    if let Some(instruction) = MemonicType::from_string(substring) {
-                        if expect == TokenType::Instruction || expect == TokenType::Any {
-                            expect = TokenType::RightLabel;
-                            current.instruction = Some(LinePart {
-                                start,
-                                end,
-                                value: instruction,
-                            });
-                        } else {
-                            return (
-                                Err(UnexpectedInstruction(
+                    for (substring, index) in split_whitespace_with_index(&line_literal) {
+                        if substring.starts_with("//") {
+                            break;
+                        }
+                        let start = index;
+                        let end = index + substring.len();
+                        if let Some(instruction) = MemonicType::from_string(substring) {
+                            if expect == TokenType::Instruction || expect == TokenType::Any {
+                                expect = TokenType::RightLabel;
+                                current.instruction = Some(LinePart {
+                                    start,
+                                    end,
+                                    value: instruction,
+                                });
+                            } else {
+                                return Some(LexerState::Err(UnexpectedInstruction(
                                     ErrorInfo {
                                         start,
                                         end,
@@ -105,47 +134,41 @@ impl Lexer {
                                         literal: line_literal.clone(),
                                     },
                                     instruction,
-                                )),
-                                self.label_lookup,
-                            );
-                        }
-                    } else if expect == TokenType::LeftLabel || expect == TokenType::Any {
-                        expect = TokenType::Instruction;
-                        self.label_lookup
-                            .insert(substring.to_string(), current_line as u16);
-                        current.left = Some(LinePart {
-                            start,
-                            end,
-                            value: substring.to_string(),
-                        });
-                    } else if expect == TokenType::RightLabel {
-                        expect = TokenType::Eof;
-                        if let Ok(number) = substring.parse::<u16>() {
-                            current.right = Some(LinePart {
+                                )));
+                            }
+                        } else if expect == TokenType::LeftLabel || expect == TokenType::Any {
+                            expect = TokenType::Instruction;
+                            self.label_lookup
+                                .insert(substring.to_string(), self.assembly_line as u16);
+                            current.left = Some(LinePart {
                                 start,
                                 end,
-                                value: RightField::Literal(number),
+                                value: substring.to_string(),
                             });
-                        } else {
-                            current.right = Some(LinePart {
-                                start,
-                                end,
-                                value: RightField::Label(substring.to_string()),
-                            });
-                        }
-                    } else if expect == TokenType::Eof {
-                        return (
-                            Err(EndOfLineExpected(ErrorInfo {
+                        } else if expect == TokenType::RightLabel {
+                            expect = TokenType::Eof;
+                            if let Ok(number) = substring.parse::<u16>() {
+                                current.right = Some(LinePart {
+                                    start,
+                                    end,
+                                    value: RightField::Literal(number),
+                                });
+                            } else {
+                                current.right = Some(LinePart {
+                                    start,
+                                    end,
+                                    value: RightField::Label(substring.to_string()),
+                                });
+                            }
+                        } else if expect == TokenType::Eof {
+                            return Some(LexerState::Err(EndOfLineExpected(ErrorInfo {
                                 start,
                                 end,
                                 line: file_line as u16,
                                 literal: line_literal.clone(),
-                            })),
-                            self.label_lookup,
-                        );
-                    } else {
-                        return (
-                            Err(AssemblerError::InvalidInstruction(
+                            })));
+                        } else {
+                            return Some(LexerState::Err(AssemblerError::InvalidInstruction(
                                 ErrorInfo {
                                     start,
                                     end,
@@ -153,17 +176,16 @@ impl Lexer {
                                     literal: line_literal.clone(),
                                 },
                                 substring.to_string(),
-                            )),
-                            self.label_lookup,
-                        );
+                            )));
+                        }
                     }
+                    self.assembly_line += 1;
+                    Some(LexerState::Some(current))
+                } else {
+                    panic!("Failed to read line");
                 }
-                line[current_line] = Some(current);
-                current_line += 1;
-            } else {
-                panic!("Failed to read line");
             }
+            None => None,
         }
-        (Ok(line), self.label_lookup)
     }
 }

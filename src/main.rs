@@ -5,7 +5,9 @@ mod opcodes;
 pub mod vm;
 
 use crate::assembler::Assembler;
+use crate::error::AssemblerError;
 use crate::lexer::LexerLineStructure;
+use crate::lexer::LineStructure;
 pub use opcodes::MemonicType;
 pub use opcodes::OpCode;
 use std::collections::HashMap;
@@ -19,30 +21,32 @@ fn main() {
         let mailbox: Mailbox;
         let label_lookup: HashMap<String, u16> = HashMap::new();
         if let Some(filename) = args.get(2) {
-            let mut file = fs::OpenOptions::new()
-                .read(true)
-                .open(filename)
-                .expect("Failed to open file");
             if filename.ends_with(".bin") {
+                let mut file = fs::OpenOptions::new()
+                    .read(true)
+                    .open(filename)
+                    .expect("Failed to open file");
                 let mailbox_from_bin = Mailbox::read_from_file(&mut file);
                 mailbox = mailbox_from_bin.expect("Failed to read mailbox");
             } else {
                 let mut new_mailbox = Mailbox::new();
                 let label_lookup;
-                let lexer_result: LexerLineStructure;
+                let mut lexer_result: LexerLineStructure = [const { None }; 100];
                 {
                     let mut file = fs::OpenOptions::new()
                         .read(true)
                         .open(filename)
                         .expect("Failed to open file");
                     let lines = BufReader::new(&mut file);
-                    let lexer = lexer::Lexer::new();
-                    let v = lexer.parse(lines);
-                    let result = v.0;
-                    label_lookup = v.1;
+                    let mut lexer = lexer::Lexer::new(lines);
+                    let result = (&mut lexer)
+                        .collect::<Result<Vec<Option<LineStructure>>, AssemblerError>>();
+                    label_lookup = lexer.get_label_lookup().clone();
                     match result {
                         Ok(result) => {
-                            lexer_result = result;
+                            for (i, line) in result.into_iter().enumerate() {
+                                lexer_result[i] = line;
+                            }
                         }
                         Err(err) => {
                             println!("{}", err);
