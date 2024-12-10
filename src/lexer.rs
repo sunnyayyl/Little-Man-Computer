@@ -1,13 +1,12 @@
-use crate::error::AssemblerError;
 use crate::error::AssemblerError::{EndOfLineExpected, UnexpectedInstruction};
+use crate::error::{AssemblerError, ErrorInfo};
 use crate::MemonicType;
 use std::collections::HashMap;
 use std::io::{BufRead, Lines};
 use std::iter::Enumerate;
 
 pub type LabelLookup = HashMap<String, u16>;
-pub type LexerLineStructure = [Option<LineStructure>; 100];
-pub type LexerResult = Result<LexerLineStructure, AssemblerError>;
+pub type LexerResult = [Option<LineStructure>; 100];
 #[derive(Debug, PartialEq)]
 pub enum RightField {
     Literal(u16),
@@ -32,13 +31,6 @@ impl<V: FromIterator<Option<LineStructure>>> FromIterator<LexerState>
             .collect()
     }
 }
-#[derive(Debug)]
-pub struct ErrorInfo {
-    pub start: usize,
-    pub end: usize,
-    pub line: u16,
-    pub literal: String,
-}
 
 #[derive(Debug)]
 pub struct LinePart<T> {
@@ -52,17 +44,15 @@ pub struct LineStructure {
     pub left: Option<LinePart<String>>,
     pub instruction: Option<LinePart<MemonicType>>,
     pub right: Option<LinePart<RightField>>,
-    pub literal: String,
     pub line: u16,
 }
 
 impl LineStructure {
-    fn new(line: u16, literal: String) -> Self {
+    fn new(line: u16) -> Self {
         Self {
             left: None,
             instruction: None,
             right: None,
-            literal,
             line,
         }
     }
@@ -88,10 +78,10 @@ pub struct Lexer<T: BufRead> {
     assembly_line: usize,
 }
 impl<T: BufRead> Lexer<T> {
-    pub fn new(source: T) -> Self {
+    pub fn new(line: Lines<T>) -> Self {
         Lexer {
             label_lookup: Default::default(),
-            lines: source.lines().enumerate(),
+            lines: line.enumerate(),
             assembly_line: 0,
         }
     }
@@ -107,7 +97,7 @@ impl<T: BufRead> Iterator for Lexer<T> {
             Some((file_line, line_literal)) => {
                 let mut expect = TokenType::Any;
                 if let Ok(line_literal) = line_literal {
-                    let mut current = LineStructure::new(file_line as u16, line_literal.clone());
+                    let mut current = LineStructure::new(file_line as u16);
                     if line_literal.trim().starts_with("//") {
                         return Some(LexerState::Skip);
                     }

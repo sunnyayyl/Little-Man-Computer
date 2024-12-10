@@ -1,6 +1,24 @@
-use crate::lexer::ErrorInfo;
 use crate::MemonicType;
 use std::fmt::{Display, Formatter};
+use std::io::{BufRead, Lines};
+
+#[derive(Debug)]
+pub struct ErrorInfo {
+    pub start: usize,
+    pub end: usize,
+    pub line: u16,
+    pub literal: String,
+}
+impl ErrorInfo {
+    pub fn new<T: BufRead>(start: usize, end: usize, line: u16, source: &mut Lines<T>) -> Self {
+        Self {
+            start,
+            end,
+            line,
+            literal: source.nth(line as usize).unwrap().unwrap()[start..end].to_string(),
+        }
+    }
+}
 fn show_code_and_point_at_position(
     f: &mut Formatter<'_>,
     position: &ErrorInfo,

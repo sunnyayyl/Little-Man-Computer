@@ -6,12 +6,12 @@ pub mod vm;
 
 use crate::assembler::Assembler;
 use crate::error::AssemblerError;
-use crate::lexer::LexerLineStructure;
+use crate::lexer::LexerResult;
 use crate::lexer::LineStructure;
 pub use opcodes::MemonicType;
 pub use opcodes::OpCode;
 use std::collections::HashMap;
-use std::io::{stdin, stdout, BufReader, Write};
+use std::io::{stdin, stdout, BufRead, BufReader, Write};
 use std::{env, fs, process};
 pub use vm::Mailbox;
 
@@ -31,13 +31,14 @@ fn main() {
             } else {
                 let mut new_mailbox = Mailbox::new();
                 let label_lookup;
-                let mut lexer_result: LexerLineStructure = [const { None }; 100];
+                let mut lexer_result: LexerResult = [const { None }; 100];
+                let file = fs::OpenOptions::new()
+                    .read(true)
+                    .open(filename)
+                    .expect("Failed to open file");
+                let source = BufReader::new(&file).lines();
                 {
-                    let mut file = fs::OpenOptions::new()
-                        .read(true)
-                        .open(filename)
-                        .expect("Failed to open file");
-                    let lines = BufReader::new(&mut file);
+                    let lines = BufReader::new(&file).lines();
                     let mut lexer = lexer::Lexer::new(lines);
                     let result = (&mut lexer)
                         .collect::<Result<Vec<Option<LineStructure>>, AssemblerError>>();
@@ -54,7 +55,7 @@ fn main() {
                         }
                     }
                 }
-                let mut assembler = Assembler::new(lexer_result, label_lookup);
+                let mut assembler = Assembler::new(source, label_lookup, lexer_result);
                 loop {
                     match assembler.parse_line() {
                         assembler::State::Ok(opcode) => {
