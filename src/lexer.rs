@@ -18,15 +18,27 @@ pub enum LexerState {
     Err(AssemblerError),
     Skip,
 }
+impl LexerState {
+    pub fn is_some(&self) -> bool {
+        matches!(self, LexerState::Some(_))
+    }
+    pub fn is_err(&self) -> bool {
+        matches!(self, LexerState::Err(_))
+    }
+    pub fn is_skip(&self) -> bool {
+        matches!(self, LexerState::Skip)
+    }
+}
 impl<V: FromIterator<Option<LineStructure>>> FromIterator<LexerState>
     for Result<V, AssemblerError>
 {
     fn from_iter<T: IntoIterator<Item = LexerState>>(iter: T) -> Result<V, AssemblerError> {
         iter.into_iter()
+            .filter(|x| !x.is_skip())
             .map(|i| match i {
                 LexerState::Some(v) => Ok(Some(v)),
                 LexerState::Err(e) => Err(e),
-                LexerState::Skip => Ok(None),
+                LexerState::Skip => panic!("Skip should be filtered out"),
             })
             .collect()
     }
