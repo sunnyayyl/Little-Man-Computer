@@ -1,0 +1,13 @@
+[package]
+name = "shared"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytemuck = "1.20.0"
+paste = "1.0.15"
+
+[features]
+default = ["std"]
+std=[]
+no_std=[]
