@@ -21,7 +21,11 @@ pub enum MailboxError {
 
 #[derive(Debug)]
 pub struct Mailbox([u16; 100]);
-
+impl From<[u16;100]> for Mailbox{
+    fn from(s: [u16;100]) -> Self {
+        Self(s)
+    }
+}
 impl Default for Mailbox {
     fn default() -> Self {
         Self::new()
@@ -35,6 +39,17 @@ impl Mailbox {
     pub fn set_instruction(&mut self, index: u16, p0: MemonicType, p1: Option<u16>) {
         self[index] = OpCode::from_mnemonic_type(p0, p1).to_numeric_representation();
     }
+    pub fn read_from_u8_slice(slice: &[u8]) -> Result<Self, MailboxError> {
+        let new_slice = try_cast_slice::<u8, u16>(slice);
+        match new_slice {
+            Ok(new_slice) => {
+                let mut s: [u16; 100] = [0; 100];
+                s.copy_from_slice(new_slice);
+                Ok(Self(s))
+            }
+            Err(e) => Err(MailboxError::Cast(e)),
+        }
+    }
     #[cfg(feature = "std")]
     pub fn export_to_file(&self, file: &mut File) -> Result<(), MailboxError> {
         match file.write_all(cast_slice::<u16, u8>(self.0.as_slice())) {
@@ -47,15 +62,7 @@ impl Mailbox {
         let mut buffer = Vec::new();
         match file.read_to_end(&mut buffer) {
             Ok(_) => {
-                let mut s: [u16; 100] = [0; 100];
-                let new_slice = try_cast_slice::<u8, u16>(buffer.as_slice());
-                match new_slice {
-                    Ok(new_slice) => {
-                        s.copy_from_slice(new_slice);
-                        Ok(Self(s))
-                    }
-                    Err(e) => Err(MailboxError::Cast(e)),
-                }
+                Mailbox::read_from_u8_slice(buffer.as_slice())
             }
             Err(e) => Err(MailboxError::Io(e)),
         }

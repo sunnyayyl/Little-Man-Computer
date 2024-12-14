@@ -7,13 +7,13 @@ use crate::assembler::Assembler;
 use crate::error::AssemblerError;
 use crate::lexer::LexerResult;
 use crate::lexer::LineStructure;
-pub use shared::opcodes::MemonicType;
-pub use shared::opcodes::OpCode;
+pub use shared::MemonicType;
+pub use shared::OpCode;
 use std::collections::HashMap;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 use std::{env, fs, process};
-use shared::std_runtime;
-pub use shared::mailbox::Mailbox;
+pub use shared::Mailbox;
+use shared::StdRuntime;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -75,12 +75,13 @@ fn main() {
             }
             match command.as_str() {
                 "run" => {
-                    let mut runtime = std_runtime::StdRuntime::new(mailbox);
+                    let mut runtime = StdRuntime::new(mailbox);
                     runtime.start();
                 }
                 "assemble" => {
-                    let target_filename =
-                        filename.split(".").collect::<Vec<&str>>()[0].to_owned() + "_mailbox.bin"; // slightly scuffed
+                    /*let target_filename =
+                        filename.split(".").collect::<Vec<&str>>()[0].to_owned() + "_mailbox.bin"; // slightly scuffed*/
+                    let target_filename="program.bin";
                     let mut target_file = fs::OpenOptions::new()
                         .write(true)
                         .create(true)
@@ -92,7 +93,7 @@ fn main() {
 
                 "debug" => {
                     let label_info: HashMap<u16, String> = label_lookup.iter().map(|(k, v)| (*v, k.clone())).collect();
-                    let mut runtime = std_runtime::StdRuntime::new(mailbox);
+                    let mut runtime = StdRuntime::new(mailbox);
                     let mut breakpoints: Vec<u16> = vec![];
                     loop {
                         let mut input = String::new();

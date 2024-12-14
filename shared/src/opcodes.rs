@@ -1,7 +1,11 @@
 #[cfg(feature="std")]
 use std::fmt::Display;
+#[cfg(feature="std")]
+use std::fmt;
 #[cfg(not(feature="std"))]
 use core::fmt::Display;
+#[cfg(not(feature="std"))]
+use core::fmt;
 macro_rules! mnemonics_type_enum {
     ($($name:ident),*)=>{
         #[derive(Debug,PartialEq,Clone, Copy)]
@@ -21,7 +25,7 @@ macro_rules! mnemonics_type_enum {
             }
         }
         impl Display for MemonicType{
-            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match self {
                     $(
                     MemonicType::$name => write!(f, "{}", stringify!($name)),
@@ -48,7 +52,7 @@ macro_rules! op_code_enum {
             )*
         }
         impl Display for OpCode{
-            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match self {
                     $(
                     OpCode::$name(a) => {

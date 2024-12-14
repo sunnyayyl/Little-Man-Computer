@@ -1,7 +1,11 @@
 use crate::mailbox::Mailbox;
 use crate::opcodes::OpCode;
-use paste::paste;
+#[cfg(not(feature = "std"))]
+use core::option::{Option, Option::None, Option::Some};
+#[cfg(not(feature = "std"))]
+use core::result::{Result, Result::Err, Result::Ok};
 
+use paste::paste;
 pub enum RuntimeError {
     InvalidInstruction(u16, u16),
 }
@@ -62,6 +66,11 @@ pub trait Runtime {
     fn inp(&mut self, addr: Option<u16>) -> RuntimeState;
     fn out(&mut self, addr: Option<u16>) -> RuntimeState;
     fn sout(&mut self, addr: Option<u16>) -> RuntimeState;
+    fn sta(&mut self, addr: Option<u16>) -> RuntimeState {
+        (*self.get_mailbox_mut())[addr.expect("STA requires an address") as usize] =
+            *self.get_accumulator();
+        RuntimeState::Running
+    }
     fn get_addresses(&self, addr: u16) -> u16 {
         self.get_mailbox()[addr as usize]
     }
@@ -85,10 +94,7 @@ pub trait Runtime {
                         *self.get_accumulator_mut() -= current_box;
                     }
                 }
-                OpCode::STA(addr) => {
-                    (*self.get_mailbox_mut())[addr.expect("STA requires an address") as usize] =
-                        *self.get_accumulator()
-                }
+                OpCode::STA(addr) => return self.sta(addr),
                 OpCode::LDA(addr) => {
                     *self.get_accumulator_mut() =
                         (*self.get_mailbox_mut())[addr.expect("LDA required an address") as usize]
