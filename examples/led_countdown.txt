@@ -1,0 +1,16 @@
+     LDA START
+     OUT      // Initialize output
+LOOP BRZ QUIT // Label this memory address as LOOP. If the accumulator value is 0, jump to the memory address labeled
+     SUB ONE  // Subtract the value stored at address ONE from the accumulator
+     STA TEMP
+     OUT
+     STA &99
+     LDA COMMA
+     STA &98
+     LDA TEMP
+     BRA LOOP // Jump (unconditionally) to the memory address labeled LOOP
+QUIT HLT      // Label this memory address as QUIT
+ONE  DAT 1    // Store the value 1 in this memory address, and label it ONE (variable declaration)
+START DAT 10
+COMMA DAT 1
+TEMP DAT 0

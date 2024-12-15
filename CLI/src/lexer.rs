@@ -11,6 +11,7 @@ pub type LexerResult = [Option<LineStructure>; 100];
 pub enum RightField {
     Literal(u16),
     Label(String),
+    Address(u16),
 }
 #[derive(Debug)]
 pub enum LexerState {
@@ -149,7 +150,14 @@ impl<T: BufRead> Iterator for Lexer<T> {
                             });
                         } else if expect == TokenType::RightLabel {
                             expect = TokenType::Eof;
-                            if let Ok(number) = substring.parse::<u16>() {
+                            if substring.starts_with("&"){
+                                let address = substring[1..].parse::<u16>().unwrap();
+                                current.right = Some(LinePart {
+                                    start,
+                                    end,
+                                    value: RightField::Address(address),
+                                });
+                            }else if let Ok(number) = substring.parse::<u16>() {
                                 current.right = Some(LinePart {
                                     start,
                                     end,

@@ -58,6 +58,9 @@ impl<'a, T: BufRead> Assembler<T> {
                                 ));
                             }
                         }
+                        RightField::Address(addr) => {
+                            address = *addr;
+                        }
                     }
                     if let Ok(instruction) =
                         OpCode::try_from_mnemonic_type(instruction.value, Some(address))
