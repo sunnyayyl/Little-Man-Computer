@@ -7,3 +7,5 @@ edition = "2021"
 adw = { version = "0.7.1", package = "libadwaita" }
 gtk = { version = "0.9.5", package = "gtk4" , features = ["blueprint"]}
 shared={path="../shared", features = ["std"]}
+[build-dependencies]
+glib-build-tools = "0.20.0"

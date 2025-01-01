@@ -1,7 +1,7 @@
 use std::fs::read_dir;
 use std::path::Path;
 use std::process::Command;
-
+use glib_build_tools::compile_resources;
 fn main() {
     let mut blueprints =vec![];
     let files= read_dir("resources/ui").unwrap();
@@ -15,4 +15,9 @@ fn main() {
     args.extend(blueprints);
     println!("{:?}", args);
     Command::new("blueprint-compiler").args(args).status().unwrap();
+    compile_resources(
+        &["resources"],
+        "resources/resources.gresource.xml",
+        "compiled.gresource",
+    );
 }

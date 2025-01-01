@@ -1,8 +1,10 @@
 use adw::glib::clone;
 use adw::prelude::*;
-use adw::{glib, Application, HeaderBar};
+use adw::{gio, glib, Application, HeaderBar};
 use gtk::{Box, Button, Orientation};
 fn main() -> glib::ExitCode {
+    gio::resources_register_include!("compiled.gresource")
+        .expect("Failed to register resources.");
     let app = Application::builder()
         .application_id("org.example.HelloWorld")
         .build();
