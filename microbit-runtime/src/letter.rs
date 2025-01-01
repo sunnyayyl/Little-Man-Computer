@@ -88,3 +88,7 @@ pub(crate) fn number_to_image(number: u8) -> [[u8; 5]; 5] {
         ],
     }
 }
+const WIDTH: u8 =5;
+const HEIGHT: u8 =5;
+const START: u8 = 32;
+const END: u8 = 126;
