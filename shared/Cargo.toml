@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 bytemuck = "1.20.0"
-paste = "1.0.15"
-
 [features]
 std=[]
+default=[]

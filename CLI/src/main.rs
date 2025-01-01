@@ -7,13 +7,13 @@ use crate::assembler::Assembler;
 use crate::error::AssemblerError;
 use crate::lexer::LexerResult;
 use crate::lexer::LineStructure;
+pub use shared::Mailbox;
 pub use shared::MemonicType;
 pub use shared::OpCode;
+use shared::StdRuntime;
 use std::collections::HashMap;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 use std::{env, fs, process};
-pub use shared::Mailbox;
-use shared::StdRuntime;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -102,21 +102,21 @@ fn main() {
                         let _ = stdin().read_line(&mut input).expect("Failed to read line");
                         match input.trim().split(' ').collect::<Vec<&str>>().as_slice() {
                             ["run"] => {
-                                while !breakpoints.contains(runtime.get_program_counter()) && runtime.evaluate_current().is_running() {}
-                                let addr = runtime.get_program_counter();
-                                if breakpoints.contains(addr) {
+                                while !breakpoints.contains(&runtime.common.program_counter) && runtime.evaluate_current().is_running() {}
+                                let addr = runtime.common.program_counter;
+                                if breakpoints.contains(&addr) {
                                     println!("(Breakpoint hit at address: {})", addr);
                                 }
                             }
                             ["step"] => {
-                                let line = runtime.get_program_counter();
+                                let line = runtime.common.program_counter;
                                 let current = runtime.get_current_instruction();
                                 let mut line_label = String::from("");
-                                if let Some(label) = label_info.get(line) {
+                                if let Some(label) = label_info.get(&line) {
                                     line_label += label;
                                     line_label += " ";
                                 } else {
-                                    line_label = runtime.get_program_counter().to_string() + " ";
+                                    line_label = line.to_string() + " ";
                                 }
                                 if let (Some(op_code), _) = current {
                                     if let Some(addr) = op_code.get_address() {
@@ -129,12 +129,12 @@ fn main() {
                                 }
                                 runtime.evaluate_current();
                             }
-                            ["mailbox"] => println!("{:?}", runtime.get_mailbox()),
+                            ["mailbox"] => println!("{:?}", runtime.common.mailbox),
                             ["get", addr] => {
                                 let addr = addr.parse::<usize>();
                                 if let Ok(addr) = addr {
                                     if (0..=100).contains(&addr) {
-                                        println!("{}", runtime.get_mailbox()[addr]);
+                                        println!("{}", runtime.common.mailbox[addr]);
                                     } else {
                                         println!("Mailbox addresses can only be between 0-100")
                                     }
@@ -154,9 +154,9 @@ fn main() {
                                     println!("Mailbox addresses must be positive integer")
                                 }
                             }
-                            ["counter"] => println!("{}", runtime.get_program_counter()),
-                            ["program_counter"] => println!("{}", runtime.get_program_counter()),
-                            ["accumulator"] => println!("{}", runtime.get_accumulator()),
+                            ["counter"] => println!("{}", runtime.common.program_counter),
+                            ["program_counter"] => println!("{}", runtime.common.program_counter),
+                            ["accumulator"] => println!("{}", runtime.common.accumulator),
                             ["help"] => println!("Available command: step, mailbox, counter, program_counter or counter, get address-here, accumulator"),
                             _ => println!("Unknown command"),
                         }

@@ -6,9 +6,9 @@ use std::io::{Read, Write};
 use std::ops::{Index, IndexMut};
 
 use crate::opcodes::{MemonicType, OpCode};
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
-use bytemuck::checked::{cast_slice, try_cast_slice, CheckedCastError};
+use bytemuck::checked::{try_cast_slice, CheckedCastError};
+#[cfg(feature = "std")]
+use bytemuck::checked::{cast_slice};
 #[cfg(not(feature = "std"))]
 use core::ops::{Index, IndexMut};
 
@@ -101,6 +101,7 @@ impl IndexMut<u16> for Mailbox {
     }
 }
 
+#[cfg(feature = "std")]
 impl From<Vec<u16>> for Mailbox {
     fn from(vec: Vec<u16>) -> Self {
         let mut s: [u16; 100] = [0; 100];

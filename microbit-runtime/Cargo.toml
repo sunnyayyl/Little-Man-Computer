@@ -2,13 +2,9 @@
 name = "microbit-runtime"
 version = "0.1.0"
 edition = "2021"
-
 [dependencies]
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.5"
 rtt-target = "0.6.1"
-shared={path="../shared"}
-paste = "1.0.15"
-embedded-alloc = "0.6.0"
-embedded-hal = "1.0.0"
+shared = { path = "../shared" }
 microbit = "0.15.1"
