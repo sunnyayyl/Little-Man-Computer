@@ -8,6 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$/microbit-runtime/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/nrf51/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/GUI/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/GUI/rust/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/CLI/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
