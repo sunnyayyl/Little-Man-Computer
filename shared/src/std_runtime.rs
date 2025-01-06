@@ -1,6 +1,8 @@
 use crate::mailbox::Mailbox;
 use crate::runtime::{Runtime, RuntimeCommon, RuntimeState};
 use std::io::{stdin, BufRead};
+use std::{print, println};
+use std::string::String;
 
 pub struct StdRuntime {
     pub common: RuntimeCommon,

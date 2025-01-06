@@ -1,0 +1,10 @@
+[package]
+name = "little_man_computer_gui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+godot = "0.2.2"
+notify = "7.0.0"
+[lib]
+crate-type = ["cdylib"]
