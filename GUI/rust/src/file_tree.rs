@@ -2,7 +2,6 @@ use crate::watcher::{WatcherState, WatcherStruct};
 use godot::classes::{ITree, TextEdit, Tree, TreeItem};
 use godot::meta::AsObjectArg;
 use godot::prelude::*;
-use notify::Watcher;
 use std::fs;
 use std::path::Path;
 

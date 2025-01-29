@@ -111,7 +111,10 @@ impl<T: BufRead> Iterator for Lexer<T> {
                 let mut expect = TokenType::Any;
                 if let Ok(line_literal) = line_literal {
                     let mut current = LineStructure::new(file_line as u16);
-                    if line_literal.trim().starts_with("//") {
+                    let trimmed = line_literal.trim();
+                    if trimmed.starts_with("//") {
+                        return Some(LexerState::Skip);
+                    }else if trimmed.is_empty(){
                         return Some(LexerState::Skip);
                     }
                     for (substring, index) in split_whitespace_with_index(&line_literal) {
