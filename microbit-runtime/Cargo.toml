@@ -8,3 +8,7 @@ cortex-m-rt = "0.7.5"
 rtt-target = "0.6.1"
 shared = { path = "../shared" }
 microbit = "0.15.1"
+
+[[bin]]
+name = "microbit-runtime"
+test=false

@@ -1,14 +1,14 @@
 #[cfg(feature = "std")]
-use std::fs::File;
-#[cfg(feature = "std")]
-use std::io::{Read, Write};
-#[cfg(feature = "std")]
-use std::ops::{Index, IndexMut};
+use {
+    std::fs::File,
+    std::io::{Read, Write},
+    std::ops::{Index, IndexMut},
+    bytemuck::checked::cast_slice,
+    std::vec::Vec
+};
 
 use crate::opcodes::{MemonicType, OpCode};
 use bytemuck::checked::{try_cast_slice, CheckedCastError};
-#[cfg(feature = "std")]
-use bytemuck::checked::{cast_slice};
 #[cfg(not(feature = "std"))]
 use core::ops::{Index, IndexMut};
 
@@ -21,8 +21,8 @@ pub enum MailboxError {
 
 #[derive(Debug)]
 pub struct Mailbox([u16; 100]);
-impl From<[u16;100]> for Mailbox{
-    fn from(s: [u16;100]) -> Self {
+impl From<[u16; 100]> for Mailbox {
+    fn from(s: [u16; 100]) -> Self {
         Self(s)
     }
 }
@@ -61,9 +61,7 @@ impl Mailbox {
     pub fn read_from_file(file: &mut File) -> Result<Self, MailboxError> {
         let mut buffer = Vec::new();
         match file.read_to_end(&mut buffer) {
-            Ok(_) => {
-                Mailbox::read_from_u8_slice(buffer.as_slice())
-            }
+            Ok(_) => Mailbox::read_from_u8_slice(buffer.as_slice()),
             Err(e) => Err(MailboxError::Io(e)),
         }
     }

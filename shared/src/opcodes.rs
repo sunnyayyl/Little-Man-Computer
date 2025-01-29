@@ -1,11 +1,7 @@
-#[cfg(feature="std")]
-use std::fmt::Display;
-#[cfg(feature="std")]
-use std::fmt;
-#[cfg(not(feature="std"))]
-use core::fmt::Display;
-#[cfg(not(feature="std"))]
-use core::fmt;
+#[cfg(not(feature = "std"))]
+use core::{fmt, fmt::Display};
+#[cfg(feature = "std")]
+use std::{fmt, fmt::Display};
 macro_rules! mnemonics_type_enum {
     ($($name:ident),*)=>{
         #[derive(Debug,PartialEq,Clone, Copy)]

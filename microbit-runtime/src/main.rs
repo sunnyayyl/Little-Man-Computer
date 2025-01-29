@@ -3,10 +3,7 @@
 
 mod letter;
 
-extern crate alloc;
-
 use crate::letter::number_to_image;
-use alloc::string::ToString;
 use core::panic::PanicInfo;
 use cortex_m::asm::nop;
 use cortex_m_rt::entry;
@@ -51,7 +48,7 @@ impl<T: Instance> Runtime for MicrobitRuntime<T> {
             let v = self.common.accumulator;
             self.common.mailbox[addr as usize] = v;
             if addr == 99 {
-                rprintln!("{:?}", v.to_string().chars());
+                rprintln!("{:?}", v.to_ne_bytes());
                 for i in v.to_string().chars() {
                     rprintln!("{}", i);
                     let num: u8 = i.to_digit(10).unwrap() as u8;

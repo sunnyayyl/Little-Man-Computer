@@ -1,9 +1,10 @@
 use crate::mailbox::Mailbox;
 use crate::opcodes::OpCode;
 #[cfg(not(feature = "std"))]
-use core::option::{Option, Option::None, Option::Some};
-#[cfg(not(feature = "std"))]
-use core::result::Result::Ok;
+use core::{
+    option::{Option, Option::None, Option::Some},
+    result::Result::Ok,
+};
 
 pub enum RuntimeError {
     InvalidInstruction(u16, u16),

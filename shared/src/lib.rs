@@ -1,9 +1,11 @@
-#![cfg_attr(not(feature="std"), no_std)]
+#![no_std]
+#[cfg(feature = "std")]
+extern crate std;
 mod mailbox;
 pub use mailbox::Mailbox;
 mod opcodes;
-pub use opcodes::OpCode;
 pub use opcodes::MemonicType;
+pub use opcodes::OpCode;
 #[cfg(feature = "std")]
 mod std_runtime;
 #[cfg(feature = "std")]
