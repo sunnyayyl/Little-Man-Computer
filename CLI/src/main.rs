@@ -36,7 +36,6 @@ fn main() {
                     .read(true)
                     .open(filename)
                     .expect("Failed to open file");
-                let source = BufReader::new(&file).lines();
                 {
                     let lines = BufReader::new(&file).lines();
                     let mut lexer = lexer::Lexer::new(lines);
@@ -55,6 +54,11 @@ fn main() {
                         }
                     }
                 }
+                let file = fs::OpenOptions::new()
+                    .read(true)
+                    .open(filename)
+                    .expect("Failed to open file");
+                let source = BufReader::new(&file).lines();
                 let mut assembler = Assembler::new(source, label_lookup, lexer_result);
                 loop {
                     match assembler.parse_line() {

@@ -15,7 +15,7 @@ impl ErrorInfo {
             start,
             end,
             line,
-            literal: source.nth(line as usize).unwrap().unwrap()[start..end].to_string(),
+            literal: source.nth(line as usize).unwrap().unwrap().to_string(),
         }
     }
 }

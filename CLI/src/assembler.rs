@@ -55,7 +55,7 @@ impl<'a, T: BufRead> Assembler<T> {
                                 return State::Err(UnsetLabel(
                                     ErrorInfo::new(right.start, right.end, *line, &mut self.source),
                                     label.clone(),
-                                ));
+                                ))
                             }
                         }
                         RightField::Address(addr) => {
