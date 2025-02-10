@@ -1,19 +1,15 @@
 use shared::runtime::Runtime;
-mod assembler;
-mod error;
-mod lexer;
 
-use crate::assembler::Assembler;
-use crate::error::AssemblerError;
-use crate::lexer::LexerResult;
-use crate::lexer::LineStructure;
+use shared::assembler::Assembler;
+use shared::error::AssemblerError;
+use shared::lexer::LexerResult;
+use shared::lexer::LineStructure;
 pub use shared::Mailbox;
-pub use shared::MemonicType;
-pub use shared::OpCode;
-use shared::StdRuntime;
+use shared::{assembler, lexer, StdRuntime};
 use std::collections::HashMap;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 use std::{env, fs, process};
+
 
 fn main() {
     let args: Vec<String> = env::args().collect();

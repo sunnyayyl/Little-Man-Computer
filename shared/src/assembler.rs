@@ -6,6 +6,7 @@ use crate::lexer::{LexerResult, LineStructure, RightField};
 use crate::OpCode;
 use std::collections::HashMap;
 use std::io::{BufRead, Lines};
+use std::string::{String, ToString};
 
 pub enum State<T, E> {
     Ok(T),

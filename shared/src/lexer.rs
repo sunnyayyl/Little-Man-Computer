@@ -4,6 +4,7 @@ use crate::MemonicType;
 use std::collections::HashMap;
 use std::io::{BufRead, Lines};
 use std::iter::Enumerate;
+use std::string::{String, ToString};
 
 pub type LabelLookup = HashMap<String, u16>;
 pub type LexerResult = [Option<LineStructure>; 100];

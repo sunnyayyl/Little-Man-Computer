@@ -11,3 +11,9 @@ mod std_runtime;
 #[cfg(feature = "std")]
 pub use std_runtime::StdRuntime;
 pub mod runtime;
+#[cfg(feature = "assembler")]
+pub mod error;
+#[cfg(feature = "assembler")]
+pub mod lexer;
+#[cfg(feature = "assembler")]
+pub mod assembler;

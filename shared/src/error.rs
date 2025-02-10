@@ -1,7 +1,7 @@
 use crate::MemonicType;
 use std::fmt::{Display, Formatter};
 use std::io::{BufRead, Lines};
-
+use std::string::{String, ToString};
 #[derive(Debug)]
 pub struct ErrorInfo {
     pub start: usize,
