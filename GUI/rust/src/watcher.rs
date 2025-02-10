@@ -43,11 +43,11 @@ impl WatcherStruct {
             false
         }
     }
-    pub fn watch(&mut self, path: &Path) -> WatcherResult {
-        if let Err(error) = self.watcher.watch(path, notify::RecursiveMode::Recursive) {
+    pub fn watch(&mut self, path: GString) -> WatcherResult {
+        if let Err(error) = self.watcher.watch(Path::new(&path.to_string()), notify::RecursiveMode::Recursive) {
             Err(WatcherError::WatchError(error))
         } else {
-            self.paths.push(GString::from(path.to_str().unwrap()));
+            self.paths.push(path);
             Ok(())
         }
     }

@@ -6,5 +6,6 @@ edition = "2021"
 [dependencies]
 godot = "0.2.2"
 notify = "7.0.0"
+shared={path="../../shared", features = ["std","assembler"]}
 [lib]
 crate-type = ["cdylib"]
