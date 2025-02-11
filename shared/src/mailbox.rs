@@ -1,13 +1,13 @@
 #[cfg(feature = "std")]
 use {
+    bytemuck::checked::cast_slice,
     std::fs::File,
     std::io::{Read, Write},
     std::ops::{Index, IndexMut},
-    bytemuck::checked::cast_slice,
-    std::vec::Vec
+    std::vec::Vec,
 };
 
-use crate::opcodes::{MemonicType, OpCode};
+use crate::opcodes::{AddressType, MemonicType, OpCode};
 use bytemuck::checked::{try_cast_slice, CheckedCastError};
 #[cfg(not(feature = "std"))]
 use core::ops::{Index, IndexMut};
@@ -36,8 +36,14 @@ impl Mailbox {
     pub fn new() -> Self {
         Self([0; 100])
     }
-    pub fn set_instruction(&mut self, index: u16, p0: MemonicType, p1: Option<u16>) {
-        self[index] = OpCode::from_mnemonic_type(p0, p1).to_numeric_representation();
+    pub fn set_instruction(
+        &mut self,
+        index: u16,
+        p0: MemonicType,
+        p1: Option<u16>,
+        p2: AddressType,
+    ) {
+        self[index] = OpCode::from_mnemonic_type(p0, p1, p2).to_numeric_representation();
     }
     pub fn read_from_u8_slice(slice: &[u8]) -> Result<Self, MailboxError> {
         let new_slice = try_cast_slice::<u8, u16>(slice);
@@ -71,7 +77,7 @@ impl Index<usize> for Mailbox {
     type Output = u16;
     fn index(&self, index: usize) -> &u16 {
         if !(0..=99).contains(&index) {
-            panic!("There are only 100 mailbox (0-99) addresses available")
+            panic!("There are only 100 mailbox (0-99) addresses available, got {}",index)
         }
         unsafe { self.0.get_unchecked(index) } // Safe because we checked the bounds
     }
@@ -80,7 +86,7 @@ impl Index<usize> for Mailbox {
 impl IndexMut<usize> for Mailbox {
     fn index_mut(&mut self, index: usize) -> &mut u16 {
         if !(0..=99).contains(&index) {
-            panic!("There are only 100 mailbox (0-99) addresses available")
+            panic!("There are only 100 mailbox (0-99) addresses available, got {}",index)
         }
         unsafe { self.0.get_unchecked_mut(index) } // Safe because we checked the bounds
     }

@@ -1,15 +1,12 @@
 use shared::runtime::Runtime;
 
 use shared::assembler::Assembler;
-use shared::error::AssemblerError;
 use shared::lexer::LexerResult;
-use shared::lexer::LineStructure;
 pub use shared::Mailbox;
-use shared::{assembler, lexer, StdRuntime};
+use shared::{assembler, lexer, StackedStdRuntime};
 use std::collections::HashMap;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 use std::{env, fs, process};
-
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -35,20 +32,21 @@ fn main() {
                 {
                     let lines = BufReader::new(&file).lines();
                     let mut lexer = lexer::Lexer::new(lines);
-                    let result = (&mut lexer)
-                        .collect::<Result<Vec<Option<LineStructure>>, AssemblerError>>();
-                    label_lookup = lexer.get_label_lookup().clone();
-                    match result {
-                        Ok(result) => {
-                            for (i, line) in result.into_iter().enumerate() {
-                                lexer_result[i] = line;
+                    let mut index: u16 = 0;
+                    for state in (&mut lexer) {
+                        match state {
+                            lexer::LexerState::Ok(line) => {
+                                lexer_result[index as usize] = Some(line);
+                                index += 1;
                             }
-                        }
-                        Err(err) => {
-                            println!("{}", err);
-                            process::exit(1);
+                            lexer::LexerState::Err(err) => {
+                                println!("{}", err);
+                                process::exit(1);
+                            }
+                            lexer::LexerState::Skip => (),
                         }
                     }
+                    label_lookup = lexer.get_label_lookup().clone();
                 }
                 let file = fs::OpenOptions::new()
                     .read(true)
@@ -69,13 +67,13 @@ fn main() {
                         assembler::State::Done => break,
                     }
                 }
-
+        
                 mailbox = new_mailbox;
                 println!("{:?}", mailbox);
             }
             match command.as_str() {
                 "run" => {
-                    let mut runtime = StdRuntime::new(mailbox);
+                    let mut runtime = StackedStdRuntime::new(mailbox);
                     runtime.start();
                 }
                 "assemble" => {
@@ -93,7 +91,7 @@ fn main() {
 
                 "debug" => {
                     let label_info: HashMap<u16, String> = label_lookup.iter().map(|(k, v)| (*v, k.clone())).collect();
-                    let mut runtime = StdRuntime::new(mailbox);
+                    let mut runtime = StackedStdRuntime::new(mailbox);
                     let mut breakpoints: Vec<u16> = vec![];
                     loop {
                         let mut input = String::new();
@@ -102,7 +100,26 @@ fn main() {
                         let _ = stdin().read_line(&mut input).expect("Failed to read line");
                         match input.trim().split(' ').collect::<Vec<&str>>().as_slice() {
                             ["run"] => {
-                                while !breakpoints.contains(&runtime.common.program_counter) && runtime.evaluate_current().is_running() {}
+                                while !breakpoints.contains(&runtime.common.program_counter) && runtime.evaluate_current().is_running() {
+                                    let line = runtime.common.program_counter;
+                                    let current = runtime.get_current_instruction();
+                                    let mut line_label = String::from("");
+                                    if let Some(label) = label_info.get(&line) {
+                                        line_label += label;
+                                        line_label += " ";
+                                    } else {
+                                        line_label = line.to_string() + " ";
+                                    }
+                                    if let (Some(op_code), _) = current {
+                                        if let Some(addr) = op_code.get_address() {
+                                            println!("{}{} {}", line_label, op_code, label_info.get(addr).unwrap_or(&String::from("")));
+                                        } else {
+                                            println!("{}{}", line_label, op_code);
+                                        }
+                                    } else if let (None, literal) = current {
+                                        println!("{}{}", line_label, literal);
+                                    }
+                                }
                                 let addr = runtime.common.program_counter;
                                 if breakpoints.contains(&addr) {
                                     println!("(Breakpoint hit at address: {})", addr);

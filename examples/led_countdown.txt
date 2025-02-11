@@ -4,9 +4,9 @@ LOOP BRZ QUIT // Label this memory address as LOOP. If the accumulator value is 
      SUB ONE  // Subtract the value stored at address ONE from the accumulator
      STA TEMP
      OUT
-     STA &99
+     STA 99
      LDA COMMA
-     STA &98
+     STA 98
      LDA TEMP
      BRA LOOP // Jump (unconditionally) to the memory address labeled LOOP
 QUIT HLT      // Label this memory address as QUIT

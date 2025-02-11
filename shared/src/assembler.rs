@@ -3,6 +3,7 @@ use crate::error::AssemblerError::{
 };
 use crate::error::{AssemblerError, ErrorInfo};
 use crate::lexer::{LexerResult, LineStructure, RightField};
+use crate::opcodes::AddressType;
 use crate::OpCode;
 use std::collections::HashMap;
 use std::io::{BufRead, Lines};
@@ -45,9 +46,11 @@ impl<'a, T: BufRead> Assembler<T> {
                     line,
                 } => {
                     let address: u16;
+                    let mut address_type: AddressType;
                     match &right.value {
                         RightField::Literal(value) => {
                             address = *value;
+                            address_type = AddressType::Literal;
                         }
                         RightField::Label(label) => {
                             if let Some(addr) = self.table_lookup.get(label) {
@@ -56,16 +59,53 @@ impl<'a, T: BufRead> Assembler<T> {
                                 return State::Err(UnsetLabel(
                                     ErrorInfo::new(right.start, right.end, *line, &mut self.source),
                                     label.clone(),
-                                ))
+                                ));
                             }
+                            address_type = AddressType::Literal;
                         }
-                        RightField::Address(addr) => {
-                            address = *addr;
+                        RightField::Register(name) => {
+                            let n = name.to_uppercase();
+                            if n == "SP" {
+                                address = 99;
+                            }else if n=="ACCUMULATOR"{
+                                address = 98;
+                            }  else {
+                                panic!("Invalid register name: {} at line {}", n, *line);
+                            }
+                            address_type = AddressType::Literal;
+                        }
+                        RightField::LiteralPointer(value) => {
+                            address = *value;
+                            address_type = AddressType::Pointer;
+                        }
+                        RightField::LabelPointer(label) => {
+                            if let Some(addr) = self.table_lookup.get(label) {
+                                address = *addr;
+                            } else {
+                                return State::Err(UnsetLabel(
+                                    ErrorInfo::new(right.start, right.end, *line, &mut self.source),
+                                    label.clone(),
+                                ));
+                            }
+                            address_type = AddressType::Pointer;
+                        }
+                        RightField::RegisterPointer(name) => {
+                            let n = name.to_uppercase();
+                            if n == "SP" {
+                                address = 99;
+                            } else if n=="ACCUMULATOR"{
+                                address = 98;
+                            } else {
+                                panic!("Invalid register name: {} at line {}", n, *line);
+                            }
+                            address_type = AddressType::Pointer;
                         }
                     }
-                    if let Ok(instruction) =
-                        OpCode::try_from_mnemonic_type(instruction.value, Some(address))
-                    {
+                    if let Ok(instruction) = OpCode::try_from_mnemonic_type(
+                        instruction.value,
+                        Some(address),
+                        address_type,
+                    ) {
                         State::Ok(instruction)
                     } else {
                         State::Err(InstructionExpectedAddress(
@@ -85,8 +125,11 @@ impl<'a, T: BufRead> Assembler<T> {
                         self.table_lookup
                             .insert(left.value.to_string(), self.current_line);
                     }
-                    if let Ok(instruction) = OpCode::try_from_mnemonic_type(instruction.value, None)
-                    {
+                    if let Ok(instruction) = OpCode::try_from_mnemonic_type(
+                        instruction.value,
+                        None,
+                        AddressType::Literal,
+                    ) {
                         State::Ok(instruction)
                     } else {
                         State::Err(InstructionExpectedAddress(

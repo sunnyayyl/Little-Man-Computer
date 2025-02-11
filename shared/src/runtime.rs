@@ -1,11 +1,10 @@
 use crate::mailbox::Mailbox;
-use crate::opcodes::OpCode;
+use crate::opcodes::{AddressType, OpCode};
 #[cfg(not(feature = "std"))]
 use core::{
     option::{Option, Option::None, Option::Some},
     result::Result::Ok,
 };
-
 pub enum RuntimeError {
     InvalidInstruction(u16, u16),
 }
@@ -34,6 +33,10 @@ fn wrap_between_valid_values(value: u16) -> u16 {
         value
     }
 }
+pub trait Stack {
+    fn stack_push(&mut self, value: u16);
+    fn stack_pop(&mut self) -> u16;
+}
 
 pub struct RuntimeCommon {
     pub accumulator: u16,
@@ -44,19 +47,16 @@ pub struct RuntimeCommon {
 pub trait Runtime {
     fn get_common(&self) -> &RuntimeCommon;
     fn get_common_mut(&mut self) -> &mut RuntimeCommon;
-    fn get_addresses(&self, addr: u16) -> u16 {
-        self.get_common().mailbox[addr as usize]
-    }
     fn add(&mut self, addr: Option<u16>) -> RuntimeState {
         let new_value = self.get_common().accumulator
-            + self.get_addresses(addr.expect("ADD requires an address"));
+            + self.load(addr.expect("ADD requires an address"));
         let common = self.get_common_mut();
         common.accumulator = wrap_between_valid_values(new_value);
         common.negative_flag = false;
         RuntimeState::Running
     }
     fn sub(&mut self, addr: Option<u16>) -> RuntimeState {
-        let current_box = self.get_addresses(addr.expect("SUB requires an address"));
+        let current_box = self.load(addr.expect("SUB requires an address"));
         let common = self.get_common_mut();
         if common.accumulator < current_box {
             common.negative_flag = true;
@@ -66,14 +66,28 @@ pub trait Runtime {
         } // Should overflow result in a negative flag?
         RuntimeState::Running
     }
-    fn sta(&mut self, addr: Option<u16>) -> RuntimeState {
+    fn mult(&mut self, addr: Option<u16>) -> RuntimeState {
+        let new_value = self.get_common().accumulator
+            * self.load(addr.expect("MULT requires an address"));
         let common = self.get_common_mut();
-        common.mailbox[addr.expect("STA requires an address") as usize] = common.accumulator;
+        common.accumulator = wrap_between_valid_values(new_value);
+        common.negative_flag = false;
+        RuntimeState::Running
+    }
+    fn load(&self, addr: u16) -> u16{
+        self.get_common().mailbox[addr]
+    }
+    fn store(&mut self, addr: u16, value: u16){
+        self.get_common_mut().mailbox[addr] = value;
+    }
+    fn sta(&mut self, addr: Option<u16>) -> RuntimeState {
+        self.store(addr.expect("STA requires an address"), self.get_common().accumulator);
         RuntimeState::Running
     }
     fn lda(&mut self, addr: Option<u16>) -> RuntimeState {
+        let v = self.load(addr.expect("LDA requires an address"));
         let common = self.get_common_mut();
-        common.accumulator = common.mailbox[addr.expect("LDA required an address") as usize];
+        common.accumulator = v;
         RuntimeState::Running
     }
     fn bra(&mut self, addr: Option<u16>) -> RuntimeState {
@@ -99,37 +113,80 @@ pub trait Runtime {
     fn inp(&mut self, addr: Option<u16>) -> RuntimeState;
     fn out(&mut self, addr: Option<u16>) -> RuntimeState;
     fn sout(&mut self, addr: Option<u16>) -> RuntimeState;
-
+    fn pop(&mut self, addr: Option<u16>) -> RuntimeState;
+    fn push(&mut self, addr: Option<u16>) -> RuntimeState;
     fn evaluate_current(&mut self) -> RuntimeState {
         let current_instruction =
-            OpCode::try_from(self.get_addresses(self.get_common().program_counter));
+            OpCode::try_from(self.load(self.get_common().program_counter));
         if let Ok(current_instruction) = current_instruction {
             self.get_common_mut().program_counter += 1;
             match current_instruction {
-                OpCode::ADD(addr) => self.add(addr),
-                OpCode::SUB(addr) => self.sub(addr),
-                OpCode::STA(addr) => self.sta(addr),
-                OpCode::LDA(addr) => self.lda(addr),
-                OpCode::BRA(addr) => self.bra(addr),
-                OpCode::BRZ(addr) => self.brz(addr),
-                OpCode::BRP(addr) => self.brp(addr),
-                OpCode::OUT(addr) => self.out(addr),
-                OpCode::INP(addr) => self.inp(addr),
-                OpCode::HLT(_) => return RuntimeState::Halted,
-                OpCode::COB(_) => return RuntimeState::Halted,
-                OpCode::DAT(_) => return RuntimeState::Halted, //should DAT be treated as the end of the program?
-                OpCode::SOUT(addr) => self.sout(addr),
+                OpCode::ADD(addr, AddressType::Literal) => self.add(addr),
+                OpCode::ADD(addr, AddressType::Pointer) => {
+                    self.add(Some(self.load(addr.unwrap())))
+                }
+                OpCode::SUB(addr, AddressType::Literal) => self.sub(addr),
+                OpCode::SUB(addr, AddressType::Pointer) => {
+                    self.sub(Some(self.load(addr.unwrap())))
+                }
+                OpCode::MULT(addr, AddressType::Literal) => self.mult(addr),
+                OpCode::MULT(addr, AddressType::Pointer) => {
+                    self.mult(Some(self.load(addr.unwrap())))
+                }
+                OpCode::STA(addr, AddressType::Literal) => self.sta(addr),
+                OpCode::STA(addr, AddressType::Pointer) => {
+                    self.sta(Some(self.load(addr.unwrap())))
+                }
+                OpCode::LDA(addr, AddressType::Literal) => self.lda(addr),
+                OpCode::LDA(addr, AddressType::Pointer) => {
+                    self.lda(Some(self.load(addr.unwrap())))
+                }
+                OpCode::BRA(addr, AddressType::Literal) => self.bra(addr),
+                OpCode::BRA(addr, AddressType::Pointer) => {
+                    self.bra(Some(self.load(addr.unwrap())))
+                }
+                OpCode::BRZ(addr, AddressType::Literal) => self.brz(addr),
+                OpCode::BRZ(addr, AddressType::Pointer) => {
+                    self.brz(Some(self.load(addr.unwrap())))
+                }
+                OpCode::BRP(addr, AddressType::Literal) => self.brp(addr),
+                OpCode::BRP(addr, AddressType::Pointer) => {
+                    self.brp(Some(self.load(addr.unwrap())))
+                }
+                OpCode::OUT(addr, AddressType::Literal) => self.out(addr),
+                OpCode::OUT(addr, AddressType::Pointer) => {
+                    self.out(Some(self.load(addr.unwrap())))
+                }
+                OpCode::INP(addr, AddressType::Literal) => self.inp(addr),
+                OpCode::INP(addr, AddressType::Pointer) => {
+                    self.inp(Some(self.load(addr.unwrap())))
+                }
+                OpCode::HLT(_, _) => RuntimeState::Halted,
+                OpCode::COB(_, _) => RuntimeState::Halted,
+                OpCode::DAT(_, _) => RuntimeState::Halted, //should DAT be treated as the end of the program?
+                OpCode::SOUT(addr, AddressType::Literal) => self.sout(addr),
+                OpCode::SOUT(addr, AddressType::Pointer) => {
+                    self.sout(Some(self.load(addr.unwrap())))
+                }
+                OpCode::POP(addr, AddressType::Literal) => self.pop(addr),
+                OpCode::POP(addr, AddressType::Pointer) => {
+                    self.pop(Some(self.load(addr.unwrap())))
+                }
+                OpCode::PUSH(addr, AddressType::Literal) => self.push(addr),
+                OpCode::PUSH(addr, AddressType::Pointer) => {
+                    self.push(Some(self.load(addr.unwrap())))
+                }
             }
         } else {
             let common = self.get_common();
             RuntimeState::Error(RuntimeError::InvalidInstruction(
                 common.program_counter,
-                self.get_addresses(common.program_counter),
+                self.load(common.program_counter),
             ))
         }
     }
     fn get_current_instruction(&self) -> (Option<OpCode>, u16) {
-        let literal = self.get_addresses(self.get_common().program_counter);
+        let literal = self.load(self.get_common().program_counter);
         let current_instruction = OpCode::try_from(literal);
         if let Ok(current_instruction) = current_instruction {
             (Some(current_instruction), literal)
@@ -141,3 +198,5 @@ pub trait Runtime {
         while self.evaluate_current().is_running() {}
     }
 }
+
+pub trait RuntimeWithStack: Runtime {}

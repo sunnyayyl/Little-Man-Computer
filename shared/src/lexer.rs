@@ -9,20 +9,29 @@ use std::string::{String, ToString};
 pub type LabelLookup = HashMap<String, u16>;
 pub type LexerResult = [Option<LineStructure>; 100];
 #[derive(Debug, PartialEq)]
+pub enum RegisterKind{
+    Accumulator,
+    ProgramCounter,
+    StackPointer
+}
+#[derive(Debug, PartialEq)]
 pub enum RightField {
-    Literal(u16),
+    Register(String),
     Label(String),
-    Address(u16),
+    Literal(u16),
+    LiteralPointer(u16),
+    LabelPointer(String),
+    RegisterPointer(String),
 }
 #[derive(Debug)]
 pub enum LexerState {
-    Some(LineStructure),
+    Ok(LineStructure),
     Err(AssemblerError),
     Skip,
 }
 impl LexerState {
     pub fn is_some(&self) -> bool {
-        matches!(self, LexerState::Some(_))
+        matches!(self, LexerState::Ok(_))
     }
     pub fn is_err(&self) -> bool {
         matches!(self, LexerState::Err(_))
@@ -38,7 +47,7 @@ impl<V: FromIterator<Option<LineStructure>>> FromIterator<LexerState>
         iter.into_iter()
             .filter(|x| !x.is_skip())
             .map(|i| match i {
-                LexerState::Some(v) => Ok(Some(v)),
+                LexerState::Ok(v) => Ok(Some(v)),
                 LexerState::Err(e) => Err(e),
                 LexerState::Skip => panic!("Skip should be filtered out"),
             })
@@ -115,7 +124,7 @@ impl<T: BufRead> Iterator for Lexer<T> {
                     let trimmed = line_literal.trim();
                     if trimmed.starts_with("//") {
                         return Some(LexerState::Skip);
-                    }else if trimmed.is_empty(){
+                    } else if trimmed.is_empty() {
                         return Some(LexerState::Skip);
                     }
                     for (substring, index) in split_whitespace_with_index(&line_literal) {
@@ -154,14 +163,36 @@ impl<T: BufRead> Iterator for Lexer<T> {
                             });
                         } else if expect == TokenType::RightLabel {
                             expect = TokenType::Eof;
-                            if substring.starts_with("&"){
-                                let address = substring[1..].parse::<u16>().unwrap();
+                            if substring.starts_with("%") {
                                 current.right = Some(LinePart {
                                     start,
                                     end,
-                                    value: RightField::Address(address),
+                                    value: RightField::Register(substring[1..].to_string()),
                                 });
-                            }else if let Ok(number) = substring.parse::<u16>() {
+                            } else if substring.starts_with("[") && substring.ends_with("]"){
+                                let part=substring[1..substring.len()-1].to_string();
+                                let addr = part .parse::<u16>();
+                                if let Ok(addr) = addr {
+                                    current.right = Some(LinePart {
+                                        start,
+                                        end,
+                                        value: RightField::LiteralPointer(addr),
+                                    });
+                                }else if part.starts_with("%"){
+                                    current.right=Some(LinePart{
+                                        start,
+                                        end,
+                                        value: RightField::RegisterPointer(part[1..].to_string())
+                                    })
+                                }
+                                else{
+                                    current.right=Some(LinePart {
+                                        start,
+                                        end,
+                                        value: RightField::LabelPointer(part),
+                                    });
+                                }
+                            } else if let Ok(number) = substring.parse::<u16>() {
                                 current.right = Some(LinePart {
                                     start,
                                     end,
@@ -194,7 +225,7 @@ impl<T: BufRead> Iterator for Lexer<T> {
                         }
                     }
                     self.assembly_line += 1;
-                    Some(LexerState::Some(current))
+                    Some(LexerState::Ok(current))
                 } else {
                     panic!("Failed to read line");
                 }

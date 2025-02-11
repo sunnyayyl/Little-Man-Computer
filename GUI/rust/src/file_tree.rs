@@ -205,4 +205,12 @@ impl Runtime for GUIRuntime {
         godot_print!("{}", char);
         RuntimeState::Running
     }
+
+    fn pop(&mut self, _addr: Option<u16>) -> RuntimeState {
+        panic!("Pop not implemented");
+    }
+
+    fn push(&mut self, _addr: Option<u16>) -> RuntimeState {
+        panic!("Push not implemented");
+    }
 }

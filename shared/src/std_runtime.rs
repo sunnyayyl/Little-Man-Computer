@@ -48,4 +48,12 @@ impl Runtime for StdRuntime {
         print!("{}", char);
         RuntimeState::Running
     }
+
+    fn pop(&mut self, _addr: Option<u16>) -> RuntimeState {
+        panic!("Pop is not implemented for std runtime")
+    }
+
+    fn push(&mut self, _addr: Option<u16>) -> RuntimeState {
+        panic!("Push is not implemented for std runtime")
+    }
 }

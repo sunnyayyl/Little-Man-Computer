@@ -17,3 +17,7 @@ pub mod error;
 pub mod lexer;
 #[cfg(feature = "assembler")]
 pub mod assembler;
+#[cfg(feature = "std")]
+mod stacked_std_runtime;
+#[cfg(feature = "std")]
+pub use stacked_std_runtime::StackedStdRuntime;
